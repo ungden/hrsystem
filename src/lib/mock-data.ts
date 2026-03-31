@@ -10,35 +10,306 @@ export interface Employee {
   ngayVaoLam: string;
   trangThai: "dang_lam" | "nghi_phep" | "da_nghi";
   avatar?: string;
+  levelCode?: string;
+  track?: CareerTrack;
+}
+
+// ============ CAREER FRAMEWORK ============
+
+export type CareerTrack = "IC" | "Manager";
+export type PerformanceRatingTier = "Top" | "Strong" | "Good" | "Weak" | "Poor";
+
+export interface CareerLevel {
+  code: string;
+  name: string;
+  nameVi: string;
+  track: CareerTrack;
+  isActive: boolean;
+  salaryBand: { min: number; mid: number; max: number };
+  minTimeMonths: number;
+  requiredKPIPercent: number;
+  description: string;
+  nextLevel: string | null;
+}
+
+export interface PerformanceRating {
+  tier: PerformanceRatingTier;
+  label: string;
+  distribution: number;
+  color: string;
+  minKPI: number;
+}
+
+export interface EmployeeCareer {
+  employeeId: string;
+  levelCode: string;
+  track: CareerTrack;
+  levelStartDate: string;
+  performanceHistory: {
+    period: string;
+    rating: PerformanceRatingTier;
+    kpiScore: number;
+  }[];
+  currentSalary: number;
+  promotionEligibleDate: string | null;
+}
+
+export interface AdminAction {
+  id: string;
+  type: "promotion" | "level_change" | "salary_change" | "review" | "level_config";
+  employeeId?: string;
+  employeeName?: string;
+  description: string;
+  timestamp: string;
+  oldValue?: string;
+  newValue?: string;
+}
+
+export interface PromotionReadiness {
+  timeServed: number;
+  timeRequired: number;
+  timeReady: boolean;
+  avgKPIScore: number;
+  kpiReady: boolean;
+  currentRating: PerformanceRatingTier;
+  salaryPosition: number;
+  missingCriteria: string[];
+  overallReady: boolean;
+  nextLevel: CareerLevel | null;
+}
+
+export const careerLevels: CareerLevel[] = [
+  { code: "L1", name: "Intern", nameVi: "Thực tập sinh", track: "IC", isActive: true, salaryBand: { min: 5_000_000, mid: 7_000_000, max: 9_000_000 }, minTimeMonths: 6, requiredKPIPercent: 50, description: "Học việc, được kèm cặp", nextLevel: "L2" },
+  { code: "L2", name: "Junior", nameVi: "Nhân viên mới", track: "IC", isActive: true, salaryBand: { min: 8_000_000, mid: 11_000_000, max: 14_000_000 }, minTimeMonths: 12, requiredKPIPercent: 55, description: "Thực hiện task cơ bản dưới sự hướng dẫn", nextLevel: "L3" },
+  { code: "L3", name: "Associate", nameVi: "Nhân viên", track: "IC", isActive: true, salaryBand: { min: 12_000_000, mid: 16_000_000, max: 20_000_000 }, minTimeMonths: 18, requiredKPIPercent: 60, description: "Tự thực hiện task, bắt đầu chủ động", nextLevel: "L4" },
+  { code: "L4", name: "Specialist", nameVi: "Chuyên viên", track: "IC", isActive: true, salaryBand: { min: 18_000_000, mid: 24_000_000, max: 30_000_000 }, minTimeMonths: 24, requiredKPIPercent: 70, description: "Chuyên sâu, mentor junior, dẫn dắt task", nextLevel: "L5" },
+  { code: "L5", name: "Senior", nameVi: "Chuyên viên cao cấp", track: "IC", isActive: true, salaryBand: { min: 25_000_000, mid: 33_000_000, max: 40_000_000 }, minTimeMonths: 24, requiredKPIPercent: 75, description: "Expert, ảnh hưởng quyết định kỹ thuật/chiến lược", nextLevel: "L6" },
+  { code: "L6", name: "Lead", nameVi: "Trưởng nhóm", track: "Manager", isActive: true, salaryBand: { min: 35_000_000, mid: 45_000_000, max: 55_000_000 }, minTimeMonths: 30, requiredKPIPercent: 80, description: "Quản lý team, chịu trách nhiệm KPI nhóm", nextLevel: "L7" },
+  { code: "L7", name: "Principal", nameVi: "Chuyên gia", track: "IC", isActive: false, salaryBand: { min: 45_000_000, mid: 55_000_000, max: 70_000_000 }, minTimeMonths: 36, requiredKPIPercent: 85, description: "Chuyên gia hàng đầu", nextLevel: "L8" },
+  { code: "L8", name: "Staff", nameVi: "Chuyên gia cao cấp", track: "IC", isActive: false, salaryBand: { min: 55_000_000, mid: 70_000_000, max: 85_000_000 }, minTimeMonths: 36, requiredKPIPercent: 85, description: "Ảnh hưởng đa team", nextLevel: "L9" },
+  { code: "L9", name: "Senior Staff", nameVi: "Chuyên gia trưởng", track: "IC", isActive: false, salaryBand: { min: 70_000_000, mid: 85_000_000, max: 100_000_000 }, minTimeMonths: 36, requiredKPIPercent: 90, description: "Ảnh hưởng toàn tổ chức", nextLevel: null },
+  { code: "L10", name: "Manager", nameVi: "Quản lý", track: "Manager", isActive: false, salaryBand: { min: 40_000_000, mid: 55_000_000, max: 70_000_000 }, minTimeMonths: 24, requiredKPIPercent: 75, description: "Quản lý phòng ban nhỏ", nextLevel: "L11" },
+  { code: "L11", name: "Senior Manager", nameVi: "Quản lý cao cấp", track: "Manager", isActive: false, salaryBand: { min: 55_000_000, mid: 70_000_000, max: 90_000_000 }, minTimeMonths: 30, requiredKPIPercent: 80, description: "Quản lý phòng ban lớn", nextLevel: "L12" },
+  { code: "L12", name: "Director", nameVi: "Giám đốc", track: "Manager", isActive: false, salaryBand: { min: 70_000_000, mid: 90_000_000, max: 120_000_000 }, minTimeMonths: 36, requiredKPIPercent: 85, description: "Giám đốc khối", nextLevel: "L13" },
+  { code: "L13", name: "VP", nameVi: "Phó Tổng Giám đốc", track: "Manager", isActive: false, salaryBand: { min: 100_000_000, mid: 130_000_000, max: 170_000_000 }, minTimeMonths: 36, requiredKPIPercent: 85, description: "Phó TGĐ phụ trách mảng", nextLevel: "L14" },
+  { code: "L14", name: "SVP", nameVi: "Phó TGĐ cấp cao", track: "Manager", isActive: false, salaryBand: { min: 140_000_000, mid: 180_000_000, max: 230_000_000 }, minTimeMonths: 36, requiredKPIPercent: 90, description: "Phó TGĐ cấp cao", nextLevel: "L15" },
+  { code: "L15", name: "C-level", nameVi: "Giám đốc điều hành", track: "Manager", isActive: false, salaryBand: { min: 200_000_000, mid: 280_000_000, max: 400_000_000 }, minTimeMonths: 48, requiredKPIPercent: 90, description: "CEO, CTO, CFO", nextLevel: null },
+];
+
+export const performanceRatings: PerformanceRating[] = [
+  { tier: "Top", label: "Xuất sắc", distribution: 10, color: "emerald", minKPI: 90 },
+  { tier: "Strong", label: "Giỏi", distribution: 20, color: "blue", minKPI: 75 },
+  { tier: "Good", label: "Tốt", distribution: 50, color: "green", minKPI: 55 },
+  { tier: "Weak", label: "Cần cải thiện", distribution: 15, color: "orange", minKPI: 35 },
+  { tier: "Poor", label: "Yếu", distribution: 5, color: "red", minKPI: 0 },
+];
+
+export const reviewCycleConfig = {
+  kpiReviewMonths: 3,
+  salaryReviewMonths: 6,
+  promotionReviewMonths: 12,
+};
+
+export const salaryFormulaConfig = {
+  basePercent: 0.80,
+  kpiPercent: 0.20,
+};
+
+export function getCareerLevel(code: string): CareerLevel | undefined {
+  return careerLevels.find(l => l.code === code);
+}
+
+export function getPerformanceRating(kpiScore: number): PerformanceRatingTier {
+  if (kpiScore >= 90) return "Top";
+  if (kpiScore >= 75) return "Strong";
+  if (kpiScore >= 55) return "Good";
+  if (kpiScore >= 35) return "Weak";
+  return "Poor";
+}
+
+function parseDate(dateStr: string): Date {
+  const [d, m, y] = dateStr.split("/").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatDateDMY(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${d}/${m}/${date.getFullYear()}`;
+}
+
+function monthsDiff(from: Date, to: Date): number {
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+}
+
+function mapChucVuToLevel(chucVu: string, levelCode?: string): { code: string; track: CareerTrack } {
+  if (levelCode) {
+    const level = careerLevels.find(l => l.code === levelCode);
+    if (level) return { code: levelCode, track: level.track };
+  }
+  switch (chucVu) {
+    case "Thực tập sinh": return { code: "L1", track: "IC" };
+    case "Nhân viên": return { code: "L3", track: "IC" };
+    case "Chuyên viên": return { code: "L4", track: "IC" };
+    case "Phó phòng": return { code: "L5", track: "Manager" };
+    case "Trưởng phòng": return { code: "L6", track: "Manager" };
+    default: return { code: "L3", track: "IC" };
+  }
 }
 
 export const employees: Employee[] = [
-  { id: "1", name: "Pham Thi Dung", maSo: "NV001", phongBan: "Phòng Kế toán", email: "dung.pt@company.vn", phone: "0901234001", chucVu: "Trưởng phòng", ngayVaoLam: "15/03/2019", trangThai: "dang_lam" },
-  { id: "2", name: "Tran Thi Anh Tuyet", maSo: "NV002", phongBan: "Phòng Kế toán", email: "tuyet.tta@company.vn", phone: "0901234002", chucVu: "Nhân viên", ngayVaoLam: "20/06/2020", trangThai: "dang_lam" },
-  { id: "3", name: "Hoang Thai Son", maSo: "NV003", phongBan: "Phòng CNTT", email: "son.ht@company.vn", phone: "0901234003", chucVu: "Trưởng phòng", ngayVaoLam: "01/01/2018", trangThai: "dang_lam" },
-  { id: "4", name: "Bui Van Duong", maSo: "NV004", phongBan: "Phòng Kinh doanh", email: "duong.bv@company.vn", phone: "0901234004", chucVu: "Nhân viên", ngayVaoLam: "10/09/2021", trangThai: "dang_lam" },
-  { id: "5", name: "Dang Hoang Son", maSo: "NV005", phongBan: "Phòng Nhân sự", email: "son.dh@company.vn", phone: "0901234005", chucVu: "Trưởng phòng", ngayVaoLam: "05/04/2017", trangThai: "dang_lam" },
-  { id: "6", name: "Pham Thanh Hau", maSo: "NV006", phongBan: "Phòng Kế toán", email: "hau.pt@company.vn", phone: "0901234006", chucVu: "Phó phòng", ngayVaoLam: "12/07/2019", trangThai: "nghi_phep" },
-  { id: "7", name: "Bach Cong Quyet", maSo: "NV007", phongBan: "Phòng CNTT", email: "quyet.bc@company.vn", phone: "0901234007", chucVu: "Chuyên viên", ngayVaoLam: "22/11/2020", trangThai: "dang_lam" },
-  { id: "8", name: "Hoang Quoc Huy", maSo: "NV008", phongBan: "Phòng Kinh doanh", email: "huy.hq@company.vn", phone: "0901234008", chucVu: "Trưởng phòng", ngayVaoLam: "03/02/2018", trangThai: "dang_lam" },
-  { id: "9", name: "Pham Huu Ky", maSo: "NV009", phongBan: "Phòng Nhân sự", email: "ky.ph@company.vn", phone: "0901234009", chucVu: "Nhân viên", ngayVaoLam: "18/05/2022", trangThai: "dang_lam" },
-  { id: "10", name: "Nguyen Thi Thanh Van", maSo: "NV010", phongBan: "Phòng Kế toán", email: "van.ntt@company.vn", phone: "0901234010", chucVu: "Nhân viên", ngayVaoLam: "25/08/2021", trangThai: "dang_lam" },
-  { id: "11", name: "Nguyen Thuy Hanh", maSo: "NV011", phongBan: "Phòng Hành chính", email: "hanh.nt@company.vn", phone: "0901234011", chucVu: "Trưởng phòng", ngayVaoLam: "07/03/2019", trangThai: "dang_lam" },
-  { id: "12", name: "Hoang Nguyen Anh", maSo: "NV012", phongBan: "Phòng CNTT", email: "anh.hn@company.vn", phone: "0901234012", chucVu: "Nhân viên", ngayVaoLam: "14/10/2022", trangThai: "nghi_phep" },
-  { id: "13", name: "Nguyen Thanh Lam", maSo: "NV013", phongBan: "Phòng Kinh doanh", email: "lam.nt@company.vn", phone: "0901234013", chucVu: "Nhân viên", ngayVaoLam: "30/01/2023", trangThai: "dang_lam" },
-  { id: "14", name: "Bui Huu Tien", maSo: "NV014", phongBan: "Phòng Nhân sự", email: "tien.bh@company.vn", phone: "0901234014", chucVu: "Chuyên viên", ngayVaoLam: "09/06/2020", trangThai: "dang_lam" },
-  { id: "15", name: "Hoang Dinh Huy", maSo: "NV015", phongBan: "Phòng Kế toán", email: "huy.hd@company.vn", phone: "0901234015", chucVu: "Thực tập sinh", ngayVaoLam: "01/12/2025", trangThai: "dang_lam" },
-  { id: "16", name: "Le Thi Mai", maSo: "NV016", phongBan: "Phòng Marketing", email: "mai.lt@company.vn", phone: "0901234016", chucVu: "Trưởng phòng", ngayVaoLam: "15/05/2018", trangThai: "dang_lam" },
-  { id: "17", name: "Vo Minh Tuan", maSo: "NV017", phongBan: "Phòng Marketing", email: "tuan.vm@company.vn", phone: "0901234017", chucVu: "Nhân viên", ngayVaoLam: "20/09/2021", trangThai: "dang_lam" },
-  { id: "18", name: "Tran Quoc Bao", maSo: "NV018", phongBan: "Phòng CNTT", email: "bao.tq@company.vn", phone: "0901234018", chucVu: "Nhân viên", ngayVaoLam: "11/04/2023", trangThai: "dang_lam" },
-  { id: "19", name: "Do Thi Hong Nhung", maSo: "NV019", phongBan: "Phòng Hành chính", email: "nhung.dth@company.vn", phone: "0901234019", chucVu: "Nhân viên", ngayVaoLam: "28/07/2022", trangThai: "da_nghi" },
-  { id: "20", name: "Le Hoang Nam", maSo: "NV020", phongBan: "Phòng Kinh doanh", email: "nam.lh@company.vn", phone: "0901234020", chucVu: "Phó phòng", ngayVaoLam: "06/11/2019", trangThai: "dang_lam" },
-  { id: "21", name: "Vu Thi Phuong", maSo: "NV021", phongBan: "Phòng Marketing", email: "phuong.vt@company.vn", phone: "0901234021", chucVu: "Chuyên viên", ngayVaoLam: "17/02/2021", trangThai: "nghi_phep" },
-  { id: "22", name: "Ngo Van Thanh", maSo: "NV022", phongBan: "Phòng CNTT", email: "thanh.nv@company.vn", phone: "0901234022", chucVu: "Thực tập sinh", ngayVaoLam: "01/01/2026", trangThai: "dang_lam" },
-  { id: "23", name: "Ly Thi Kim Ngan", maSo: "NV023", phongBan: "Phòng Kế toán", email: "ngan.ltk@company.vn", phone: "0901234023", chucVu: "Chuyên viên", ngayVaoLam: "23/08/2020", trangThai: "dang_lam" },
-  { id: "24", name: "Truong Minh Duc", maSo: "NV024", phongBan: "Phòng Kinh doanh", email: "duc.tm@company.vn", phone: "0901234024", chucVu: "Nhân viên", ngayVaoLam: "04/03/2024", trangThai: "dang_lam" },
-  { id: "25", name: "Phan Thi Bich Ngoc", maSo: "NV025", phongBan: "Phòng Nhân sự", email: "ngoc.ptb@company.vn", phone: "0901234025", chucVu: "Phó phòng", ngayVaoLam: "19/10/2018", trangThai: "dang_lam" },
+  { id: "1", name: "Pham Thi Dung", maSo: "NV001", phongBan: "Phòng Kế toán", email: "dung.pt@company.vn", phone: "0901234001", chucVu: "Trưởng phòng", ngayVaoLam: "15/03/2019", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "2", name: "Tran Thi Anh Tuyet", maSo: "NV002", phongBan: "Phòng Kế toán", email: "tuyet.tta@company.vn", phone: "0901234002", chucVu: "Nhân viên", ngayVaoLam: "20/06/2020", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "3", name: "Hoang Thai Son", maSo: "NV003", phongBan: "Phòng CNTT", email: "son.ht@company.vn", phone: "0901234003", chucVu: "Trưởng phòng", ngayVaoLam: "01/01/2018", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "4", name: "Bui Van Duong", maSo: "NV004", phongBan: "Phòng Kinh doanh", email: "duong.bv@company.vn", phone: "0901234004", chucVu: "Nhân viên", ngayVaoLam: "10/09/2021", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "5", name: "Dang Hoang Son", maSo: "NV005", phongBan: "Phòng Nhân sự", email: "son.dh@company.vn", phone: "0901234005", chucVu: "Trưởng phòng", ngayVaoLam: "05/04/2017", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "6", name: "Pham Thanh Hau", maSo: "NV006", phongBan: "Phòng Kế toán", email: "hau.pt@company.vn", phone: "0901234006", chucVu: "Phó phòng", ngayVaoLam: "12/07/2019", trangThai: "nghi_phep", levelCode: "L5", track: "Manager" },
+  { id: "7", name: "Bach Cong Quyet", maSo: "NV007", phongBan: "Phòng CNTT", email: "quyet.bc@company.vn", phone: "0901234007", chucVu: "Chuyên viên", ngayVaoLam: "22/11/2020", trangThai: "dang_lam", levelCode: "L4", track: "IC" },
+  { id: "8", name: "Hoang Quoc Huy", maSo: "NV008", phongBan: "Phòng Kinh doanh", email: "huy.hq@company.vn", phone: "0901234008", chucVu: "Trưởng phòng", ngayVaoLam: "03/02/2018", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "9", name: "Pham Huu Ky", maSo: "NV009", phongBan: "Phòng Nhân sự", email: "ky.ph@company.vn", phone: "0901234009", chucVu: "Nhân viên", ngayVaoLam: "18/05/2022", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "10", name: "Nguyen Thi Thanh Van", maSo: "NV010", phongBan: "Phòng Kế toán", email: "van.ntt@company.vn", phone: "0901234010", chucVu: "Nhân viên", ngayVaoLam: "25/08/2021", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "11", name: "Nguyen Thuy Hanh", maSo: "NV011", phongBan: "Phòng Hành chính", email: "hanh.nt@company.vn", phone: "0901234011", chucVu: "Trưởng phòng", ngayVaoLam: "07/03/2019", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "12", name: "Hoang Nguyen Anh", maSo: "NV012", phongBan: "Phòng CNTT", email: "anh.hn@company.vn", phone: "0901234012", chucVu: "Nhân viên", ngayVaoLam: "14/10/2022", trangThai: "nghi_phep", levelCode: "L3", track: "IC" },
+  { id: "13", name: "Nguyen Thanh Lam", maSo: "NV013", phongBan: "Phòng Kinh doanh", email: "lam.nt@company.vn", phone: "0901234013", chucVu: "Nhân viên", ngayVaoLam: "30/01/2023", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "14", name: "Bui Huu Tien", maSo: "NV014", phongBan: "Phòng Nhân sự", email: "tien.bh@company.vn", phone: "0901234014", chucVu: "Chuyên viên", ngayVaoLam: "09/06/2020", trangThai: "dang_lam", levelCode: "L4", track: "IC" },
+  { id: "15", name: "Hoang Dinh Huy", maSo: "NV015", phongBan: "Phòng Kế toán", email: "huy.hd@company.vn", phone: "0901234015", chucVu: "Thực tập sinh", ngayVaoLam: "01/12/2025", trangThai: "dang_lam", levelCode: "L1", track: "IC" },
+  { id: "16", name: "Le Thi Mai", maSo: "NV016", phongBan: "Phòng Marketing", email: "mai.lt@company.vn", phone: "0901234016", chucVu: "Trưởng phòng", ngayVaoLam: "15/05/2018", trangThai: "dang_lam", levelCode: "L6", track: "Manager" },
+  { id: "17", name: "Vo Minh Tuan", maSo: "NV017", phongBan: "Phòng Marketing", email: "tuan.vm@company.vn", phone: "0901234017", chucVu: "Nhân viên", ngayVaoLam: "20/09/2021", trangThai: "dang_lam", levelCode: "L3", track: "IC" },
+  { id: "18", name: "Tran Quoc Bao", maSo: "NV018", phongBan: "Phòng CNTT", email: "bao.tq@company.vn", phone: "0901234018", chucVu: "Nhân viên", ngayVaoLam: "11/04/2023", trangThai: "dang_lam", levelCode: "L2", track: "IC" },
+  { id: "19", name: "Do Thi Hong Nhung", maSo: "NV019", phongBan: "Phòng Hành chính", email: "nhung.dth@company.vn", phone: "0901234019", chucVu: "Nhân viên", ngayVaoLam: "28/07/2022", trangThai: "da_nghi", levelCode: "L3", track: "IC" },
+  { id: "20", name: "Le Hoang Nam", maSo: "NV020", phongBan: "Phòng Kinh doanh", email: "nam.lh@company.vn", phone: "0901234020", chucVu: "Phó phòng", ngayVaoLam: "06/11/2019", trangThai: "dang_lam", levelCode: "L5", track: "Manager" },
+  { id: "21", name: "Vu Thi Phuong", maSo: "NV021", phongBan: "Phòng Marketing", email: "phuong.vt@company.vn", phone: "0901234021", chucVu: "Chuyên viên", ngayVaoLam: "17/02/2021", trangThai: "nghi_phep", levelCode: "L4", track: "IC" },
+  { id: "22", name: "Ngo Van Thanh", maSo: "NV022", phongBan: "Phòng CNTT", email: "thanh.nv@company.vn", phone: "0901234022", chucVu: "Thực tập sinh", ngayVaoLam: "01/01/2026", trangThai: "dang_lam", levelCode: "L1", track: "IC" },
+  { id: "23", name: "Ly Thi Kim Ngan", maSo: "NV023", phongBan: "Phòng Kế toán", email: "ngan.ltk@company.vn", phone: "0901234023", chucVu: "Chuyên viên", ngayVaoLam: "23/08/2020", trangThai: "dang_lam", levelCode: "L4", track: "IC" },
+  { id: "24", name: "Truong Minh Duc", maSo: "NV024", phongBan: "Phòng Kinh doanh", email: "duc.tm@company.vn", phone: "0901234024", chucVu: "Nhân viên", ngayVaoLam: "04/03/2024", trangThai: "dang_lam", levelCode: "L2", track: "IC" },
+  { id: "25", name: "Phan Thi Bich Ngoc", maSo: "NV025", phongBan: "Phòng Nhân sự", email: "ngoc.ptb@company.vn", phone: "0901234025", chucVu: "Phó phòng", ngayVaoLam: "19/10/2018", trangThai: "dang_lam", levelCode: "L5", track: "Manager" },
 ];
+
+// ============ EMPLOYEE CAREER DATA (generated from employees) ============
+
+function generateEmployeeCareers(): EmployeeCareer[] {
+  const now = new Date(2026, 2, 30);
+  const quarters = ["Q3/2025", "Q4/2025", "Q1/2026"];
+
+  return employees.filter(e => e.trangThai !== "da_nghi").map(emp => {
+    const { code, track } = mapChucVuToLevel(emp.chucVu, emp.levelCode);
+    const level = getCareerLevel(code)!;
+    const joinDate = parseDate(emp.ngayVaoLam);
+
+    const totalMonths = monthsDiff(joinDate, now);
+    let levelStartOffset = 0;
+    if (code === "L6" && totalMonths > 36) levelStartOffset = Math.min(totalMonths - 24, totalMonths);
+    else if (code === "L5" && totalMonths > 24) levelStartOffset = Math.min(totalMonths - 18, totalMonths);
+    else if (code === "L4" && totalMonths > 18) levelStartOffset = Math.min(totalMonths - 12, totalMonths);
+
+    const levelStartDate = new Date(joinDate);
+    if (levelStartOffset > 0) {
+      levelStartDate.setMonth(levelStartDate.getMonth() + levelStartOffset);
+    }
+
+    const seed = parseInt(emp.id);
+    const pseudoRand = (n: number) => ((seed * 17 + n * 31 + seed * n * 7) % 100);
+
+    const performanceHistory = quarters.map((period, i) => {
+      // Score varies more: base 40-90 depending on level, with +-15 per quarter
+      const levelBonus = parseInt(code.slice(1)) * 3;
+      const quarterVariation = ((seed * 11 + i * 23) % 30) - 15;
+      const kpiScore = Math.max(30, Math.min(98, 45 + levelBonus + quarterVariation + pseudoRand(i) * 0.2));
+      return {
+        period,
+        rating: getPerformanceRating(kpiScore),
+        kpiScore: Math.round(kpiScore),
+      };
+    });
+
+    const bandRange = level.salaryBand.max - level.salaryBand.min;
+    const salaryPosition = (pseudoRand(42) / 100);
+    const currentSalary = Math.round((level.salaryBand.min + bandRange * salaryPosition) / 100000) * 100000;
+
+    const monthsAtLevel = monthsDiff(levelStartDate, now);
+    let promotionEligibleDate: string | null = null;
+    if (level.nextLevel) {
+      if (monthsAtLevel >= level.minTimeMonths) {
+        promotionEligibleDate = formatDateDMY(levelStartDate);
+      } else {
+        const eligibleDate = new Date(levelStartDate);
+        eligibleDate.setMonth(eligibleDate.getMonth() + level.minTimeMonths);
+        promotionEligibleDate = formatDateDMY(eligibleDate);
+      }
+    }
+
+    return {
+      employeeId: emp.id,
+      levelCode: code,
+      track,
+      levelStartDate: formatDateDMY(levelStartDate),
+      performanceHistory,
+      currentSalary,
+      promotionEligibleDate,
+    };
+  });
+}
+
+export const employeeCareers = generateEmployeeCareers();
+
+export function getEmployeeCareer(employeeId: string): EmployeeCareer | undefined {
+  return employeeCareers.find(c => c.employeeId === employeeId);
+}
+
+export function calculatePromotionReadiness(employeeId: string): PromotionReadiness | null {
+  const career = getEmployeeCareer(employeeId);
+  if (!career) return null;
+
+  const level = getCareerLevel(career.levelCode);
+  if (!level) return null;
+
+  const now = new Date(2026, 2, 30);
+  const levelStart = parseDate(career.levelStartDate);
+  const timeServed = monthsDiff(levelStart, now);
+  const timeRequired = level.minTimeMonths;
+  const timeReady = timeServed >= timeRequired;
+
+  const recentScores = career.performanceHistory.slice(-3);
+  const avgKPIScore = recentScores.length > 0
+    ? Math.round(recentScores.reduce((sum, s) => sum + s.kpiScore, 0) / recentScores.length)
+    : 0;
+  const kpiReady = avgKPIScore >= level.requiredKPIPercent;
+  const currentRating = getPerformanceRating(avgKPIScore);
+
+  const bandRange = level.salaryBand.max - level.salaryBand.min;
+  const salaryPosition = bandRange > 0
+    ? Math.round(((career.currentSalary - level.salaryBand.min) / bandRange) * 100)
+    : 50;
+
+  const nextLevel = level.nextLevel ? getCareerLevel(level.nextLevel) || null : null;
+
+  const missingCriteria: string[] = [];
+  if (!timeReady) {
+    const remaining = timeRequired - timeServed;
+    missingCriteria.push(`Cần thêm ${remaining} tháng tại cấp bậc hiện tại`);
+  }
+  if (!kpiReady) {
+    missingCriteria.push(`Cần nâng điểm KPI lên ${level.requiredKPIPercent}% (hiện tại ${avgKPIScore}%)`);
+  }
+  if (currentRating === "Weak" || currentRating === "Poor") {
+    missingCriteria.push(`Xếp loại hiệu suất cần đạt mức Tốt trở lên`);
+  }
+
+  const overallReady = timeReady && kpiReady && currentRating !== "Weak" && currentRating !== "Poor";
+
+  return {
+    timeServed,
+    timeRequired,
+    timeReady,
+    avgKPIScore,
+    kpiReady,
+    currentRating,
+    salaryPosition: Math.max(0, Math.min(100, salaryPosition)),
+    missingCriteria,
+    overallReady,
+    nextLevel,
+  };
+}
 
 // Attendance status types
 export type AttendanceStatus = "present" | "late" | "absent" | "off" | "halfday" | "wfh" | null;

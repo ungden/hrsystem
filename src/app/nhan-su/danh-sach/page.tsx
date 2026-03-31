@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
-import { employees, Employee } from "@/lib/mock-data";
+import { employees, Employee, getCareerLevel } from "@/lib/mock-data";
 
 type EmployeeRow = Employee & Record<string, unknown>;
 
@@ -19,7 +20,9 @@ const columns = [
           </span>
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-800">{row.name}</p>
+          <Link href={`/nhan-su/career/${row.id}`} className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">
+            {row.name}
+          </Link>
           <p className="text-xs text-slate-400">{row.phongBan}</p>
         </div>
       </div>
@@ -32,6 +35,19 @@ const columns = [
   {
     key: "chucVu",
     label: "Chức vụ",
+  },
+  {
+    key: "levelCode",
+    label: "Cấp bậc",
+    render: (row: EmployeeRow) => {
+      const level = row.levelCode ? getCareerLevel(row.levelCode as string) : null;
+      if (!level) return <span className="text-xs text-slate-400">-</span>;
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+          {level.code}
+        </span>
+      );
+    },
   },
   {
     key: "email",

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Target, Percent, DollarSign, CheckCircle2, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Target, Percent, DollarSign, CheckCircle2, ChevronLeft, ChevronRight, Calendar, TrendingUp } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
@@ -18,6 +19,9 @@ import {
   formatCurrency,
   columnConfig,
   priorityConfig,
+  getCareerLevel,
+  getEmployeeCareer,
+  calculatePromotionReadiness,
   type KanbanTask,
   type TaskStatus,
 } from "@/lib/mock-data";
@@ -93,9 +97,29 @@ export default function CongViecCuaToiPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Calendar className="w-4 h-4" />
-            <span>Tháng 3/2026</span>
+          <div className="flex items-center gap-3">
+            {(() => {
+              const career = getEmployeeCareer(CURRENT_USER_ID);
+              const level = career ? getCareerLevel(career.levelCode) : null;
+              const readiness = calculatePromotionReadiness(CURRENT_USER_ID);
+              if (!level) return null;
+              return (
+                <Link href={`/nhan-su/career/${CURRENT_USER_ID}`}
+                  className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-lg px-3 py-2 transition-colors">
+                  <TrendingUp size={14} className="text-blue-600" />
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-blue-700">{level.code} - {level.nameVi}</p>
+                    <p className="text-[10px] text-blue-500">
+                      {readiness?.overallReady ? "Đủ ĐK thăng tiến" : `KPI: ${readiness?.avgKPIScore || 0}%`}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })()}
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Calendar className="w-4 h-4" />
+              <span>Tháng 3/2026</span>
+            </div>
           </div>
         </div>
       </div>

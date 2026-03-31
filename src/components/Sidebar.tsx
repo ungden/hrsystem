@@ -20,6 +20,8 @@ import {
   ClipboardList,
   Award,
   Kanban,
+  TrendingUp,
+  Settings2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -50,6 +52,8 @@ const menuItems: MenuItem[] = [
       { label: "Giao việc", href: "/nhan-su/kanban", icon: ClipboardList },
       { label: "Bảng điểm", href: "/nhan-su/kanban/bang-diem", icon: Award },
       { label: "Báo cáo nhân sự", href: "/nhan-su/bao-cao", icon: FileBarChart },
+      { label: "Lộ trình nghề nghiệp", href: "/nhan-su/career-framework", icon: TrendingUp },
+      { label: "Quản lý Career", href: "/nhan-su/career-framework/admin", icon: Settings2 },
     ],
   },
   {

@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, UserCheck, CalendarOff, DollarSign } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { Users, UserCheck, CalendarOff, DollarSign, TrendingUp, Award, Layers } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
+import StatusBadge from "@/components/StatusBadge";
 import {
   dashboardStats,
   departmentDistribution,
   recentActivities,
   formatCurrency,
+  employees,
+  employeeCareers,
+  calculatePromotionReadiness,
+  getCareerLevel,
 } from "@/lib/mock-data";
 
 export default function DashboardPage() {
@@ -49,6 +55,46 @@ export default function DashboardPage() {
           value={dashboardStats.luongChoDuyet}
           color="purple"
         />
+      </div>
+
+      {/* Career Quick Stats */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-800">Lộ trình nghề nghiệp</h2>
+          <Link href="/nhan-su/career-framework" className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            Xem chi tiết
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(() => {
+            const activeEmps = employees.filter(e => e.trangThai !== "da_nghi");
+            const eligible = activeEmps.filter(e => calculatePromotionReadiness(e.id)?.overallReady).length;
+            const levelCounts: Record<string, number> = {};
+            employeeCareers.forEach(c => { levelCounts[c.levelCode] = (levelCounts[c.levelCode] || 0) + 1; });
+            const topLevel = Object.entries(levelCounts).sort((a, b) => b[1] - a[1])[0];
+
+            return (
+              <>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-blue-700">{employeeCareers.length}</p>
+                  <p className="text-[11px] text-blue-500 mt-0.5">Có lộ trình</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-green-700">{eligible}</p>
+                  <p className="text-[11px] text-green-500 mt-0.5">Đủ ĐK thăng tiến</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-purple-700">{topLevel ? topLevel[0] : "-"}</p>
+                  <p className="text-[11px] text-purple-500 mt-0.5">Level phổ biến nhất</p>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-orange-700">{Object.keys(levelCounts).length}</p>
+                  <p className="text-[11px] text-orange-500 mt-0.5">Levels đang dùng</p>
+                </div>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Two-column section */}

@@ -70,6 +70,41 @@ const defaultConfig: Record<string, StatusConfig> = {
     color: "bg-red-500",
     bg: "bg-red-50 text-red-700",
   },
+  du_dieu_kien: {
+    label: "Đủ điều kiện",
+    color: "bg-green-500",
+    bg: "bg-green-50 text-green-700",
+  },
+  chua_du_dieu_kien: {
+    label: "Chưa đủ điều kiện",
+    color: "bg-orange-500",
+    bg: "bg-orange-50 text-orange-700",
+  },
+  rating_top: {
+    label: "Xuất sắc",
+    color: "bg-emerald-500",
+    bg: "bg-emerald-50 text-emerald-700",
+  },
+  rating_strong: {
+    label: "Giỏi",
+    color: "bg-blue-500",
+    bg: "bg-blue-50 text-blue-700",
+  },
+  rating_good: {
+    label: "Tốt",
+    color: "bg-green-500",
+    bg: "bg-green-50 text-green-700",
+  },
+  rating_weak: {
+    label: "Cần cải thiện",
+    color: "bg-orange-500",
+    bg: "bg-orange-50 text-orange-700",
+  },
+  rating_poor: {
+    label: "Yếu",
+    color: "bg-red-500",
+    bg: "bg-red-50 text-red-700",
+  },
 };
 
 export default function StatusBadge({ status, config }: StatusBadgeProps) {

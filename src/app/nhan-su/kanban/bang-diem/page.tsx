@@ -208,7 +208,7 @@ export default function BangDiemPage() {
 
       {/* Data Table */}
       <DataTable
-        columns={columns}
+        columns={columns as never}
         data={filteredScores as unknown as Record<string, unknown>[]}
         pageSize={10}
         searchable

@@ -353,7 +353,7 @@ export default function DuyetLuongPage() {
 
       {/* Data Table */}
       <DataTable
-        columns={columns}
+        columns={columns as never}
         data={filteredData as unknown as Record<string, unknown>[]}
         pageSize={10}
         searchable

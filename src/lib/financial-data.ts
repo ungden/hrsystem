@@ -19,14 +19,13 @@ function prand(seed: number, n: number): number {
 
 const months = ['T4/2025', 'T5/2025', 'T6/2025', 'T7/2025', 'T8/2025', 'T9/2025', 'T10/2025', 'T11/2025', 'T12/2025', 'T1/2026', 'T2/2026', 'T3/2026'];
 
-// Revenue weights per department
+// Revenue by channel (not department — only Sales/Marketing generate revenue)
 const revenueWeights: Record<string, number> = {
-  'Phòng Kinh doanh': 0.45,
-  'Phòng Marketing': 0.20,
-  'Phòng CNTT': 0.18,
-  'Phòng Kế toán': 0.05,
-  'Phòng Nhân sự': 0.02,
-  'Phòng Hành chính': 0.02,
+  'Sales': 0.55,
+  'Marketing': 0.45,
+  'Vận hành': 0,
+  'Kế toán': 0,
+  'Ban Giám đốc': 0,
 };
 
 export function generateIncomeStatements(): IncomeStatementMonth[] {

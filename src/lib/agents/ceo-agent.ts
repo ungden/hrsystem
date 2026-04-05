@@ -12,9 +12,12 @@ export function runCEOAgent(year: number, quarter: QuarterPeriod): {
   const activeEmployees = employees.filter(e => e.trangThai !== 'da_nghi');
   const totalSalary = employeeCareers.reduce((s, c) => s + c.currentSalary, 0);
 
-  // Revenue target: based on total salary cost * multiplier (company needs to earn 3-4x salary cost)
-  const revenueTarget = Math.round(totalSalary * 3.5 / 1_000_000) * 1_000_000;
-  const revenueActual = Math.round(revenueTarget * (0.6 + pseudoRandom(year, 1) * 0.3));
+  // Teeworld: Revenue target Q2 = 4 tỷ (20% of 20 tỷ annual target)
+  // Q1: 6 tỷ (Tết peak), Q2: 4 tỷ, Q3: 4.4 tỷ, Q4: 5.6 tỷ
+  const quarterTargets: Record<string, number> = { Q1: 6_000_000_000, Q2: 4_000_000_000, Q3: 4_400_000_000, Q4: 5_600_000_000 };
+  const revenueTarget = quarterTargets[quarter] || 4_000_000_000;
+  // Q1 done (6 tỷ), Q2 in progress
+  const revenueActual = quarter === 'Q1' ? 6_000_000_000 : Math.round(revenueTarget * (0.2 + pseudoRandom(year, 1) * 0.2));
 
   // Growth target: new customers/deals
   const growthTarget = activeEmployees.length * 2;

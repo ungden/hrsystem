@@ -1,41 +1,42 @@
 import { BusinessTarget, DepartmentGoal, AgentMessage } from '../agent-types';
 import { employees, departments } from '../mock-data';
 
-// Department relevance weights for each target category
+// Department relevance weights for Teeworld
+// Revenue only comes from Sales & Marketing channels
+// Other departments are cost centers with operational KPIs
 const deptWeights: Record<string, Record<string, number>> = {
   revenue: {
-    'Phòng Kinh doanh': 0.40,
-    'Phòng Marketing': 0.25,
-    'Phòng CNTT': 0.15,
-    'Phòng Kế toán': 0.08,
-    'Phòng Nhân sự': 0.05,
-    'Phòng Hành chính': 0.07,
+    'Sales': 0.55,
+    'Marketing': 0.45,
+    'Vận hành': 0,
+    'Kế toán': 0,
+    'Ban Giám đốc': 0,
   },
   growth: {
-    'Phòng Kinh doanh': 0.35,
-    'Phòng Marketing': 0.30,
-    'Phòng CNTT': 0.10,
-    'Phòng Kế toán': 0.05,
-    'Phòng Nhân sự': 0.10,
-    'Phòng Hành chính': 0.10,
+    'Marketing': 0.50,
+    'Sales': 0.35,
+    'Vận hành': 0.05,
+    'Kế toán': 0.05,
+    'Ban Giám đốc': 0.05,
   },
   efficiency: {
-    'Phòng CNTT': 0.30,
-    'Phòng Hành chính': 0.20,
-    'Phòng Kế toán': 0.20,
-    'Phòng Nhân sự': 0.15,
-    'Phòng Kinh doanh': 0.10,
-    'Phòng Marketing': 0.05,
+    'Vận hành': 0.40,
+    'Kế toán': 0.25,
+    'Sales': 0.15,
+    'Marketing': 0.15,
+    'Ban Giám đốc': 0.05,
   },
   quality: {
-    'Phòng CNTT': 0.25,
-    'Phòng Kinh doanh': 0.20,
-    'Phòng Nhân sự': 0.15,
-    'Phòng Kế toán': 0.15,
-    'Phòng Marketing': 0.15,
-    'Phòng Hành chính': 0.10,
+    'Sales': 0.30,
+    'Vận hành': 0.30,
+    'Marketing': 0.20,
+    'Kế toán': 0.10,
+    'Ban Giám đốc': 0.10,
   },
 };
+
+// Use Teeworld departments from Supabase
+const teeworldDepartments = ['Ban Giám đốc', 'Marketing', 'Sales', 'Vận hành', 'Kế toán'];
 
 function pseudoRandom(seed: number): number {
   return ((seed * 13 + 37) % 100) / 100;
@@ -52,10 +53,9 @@ export function runHRDirectorAgent(targets: BusinessTarget[]): {
   for (const target of targets) {
     const weights = deptWeights[target.category] || deptWeights.quality;
 
-    for (const dept of departments) {
-      const weight = weights[dept] || 0.1;
-      const deptEmployees = activeEmployees.filter(e => e.phongBan === dept);
-      if (deptEmployees.length === 0) continue;
+    for (const dept of teeworldDepartments) {
+      const weight = weights[dept] || 0;
+      if (weight === 0) continue; // Skip departments with 0 weight
 
       const deptTargetValue = Math.round(target.targetValue * weight);
       const deptActualValue = Math.round(target.currentValue * weight * (0.8 + pseudoRandom(goalId) * 0.4));
@@ -74,19 +74,13 @@ export function runHRDirectorAgent(targets: BusinessTarget[]): {
     }
   }
 
-  // Department headcount summary
-  const deptSummary = departments.map(d => {
-    const count = activeEmployees.filter(e => e.phongBan === d).length;
-    return `${d.replace('Phòng ', '')}: ${count} người`;
-  }).join(', ');
-
   const messages: AgentMessage[] = [
     {
       id: 'msg-hr-1',
       agentRole: 'hr_director',
       agentName: 'AI HR Director',
       timestamp: new Date().toISOString(),
-      content: `Đã phân bổ ${targets.length} mục tiêu kinh doanh thành ${goals.length} mục tiêu phòng ban. Phân bổ dựa trên vai trò và năng lực của từng phòng. Đội ngũ hiện tại: ${deptSummary}.`,
+      content: `Teeworld: Doanh thu 100% từ Sales (55%) & Marketing (45%). Vận hành, Kế toán, Ban GĐ là cost centers — đánh giá theo hiệu suất & chất lượng, không theo doanh thu.`,
       type: 'decision',
     },
     {
@@ -94,7 +88,7 @@ export function runHRDirectorAgent(targets: BusinessTarget[]): {
       agentRole: 'hr_director',
       agentName: 'AI HR Director',
       timestamp: new Date().toISOString(),
-      content: `Phòng Kinh doanh và Marketing chịu trách nhiệm chính cho mục tiêu doanh thu (65%). Phòng CNTT dẫn đầu mục tiêu hiệu suất (30%). Tất cả phòng ban đều có đóng góp vào mục tiêu chất lượng.`,
+      content: `Đã phân bổ ${targets.length} mục tiêu cho ${teeworldDepartments.length} phòng ban. Marketing team (CMO + TP + Ads + Design) chịu trách nhiệm chính cho tăng trưởng. Sales team (TN + QL ĐH + CSKH) chịu trách nhiệm chốt đơn & retention.`,
       type: 'analysis',
     },
   ];

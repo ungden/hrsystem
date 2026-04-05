@@ -46,7 +46,7 @@ export default function PnLWaterfall({ statement }: PnLWaterfallProps) {
           <XAxis dataKey="name" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}M`} />
           <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]} label={{ position: 'top', fontSize: 10, formatter: (v: number) => `${v}M` }}>
+          <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} label={{ position: 'top', fontSize: 10, formatter: (v: number) => `${v}M` }}>
             {chartData.map((entry, index) => (
               <Cell key={index} fill={entry.fill} />
             ))}

@@ -31,10 +31,10 @@ export default function IncomeStatementChart({ statements }: IncomeStatementChar
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}M`} />
           <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="Doanh thu" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-          <Line type="monotone" dataKey="Chi phí" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-          <Line type="monotone" dataKey="Lợi nhuận" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
-          <Line type="monotone" dataKey="Ngân sách DT" stroke="#10b981" strokeWidth={1} strokeDasharray="5 5" dot={false} />
+          <Line type="monotone" dataKey="Doanh thu" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+          <Line type="monotone" dataKey="Chi phí" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+          <Line type="monotone" dataKey="Lợi nhuận" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive={false} />
+          <Line type="monotone" dataKey="Ngân sách DT" stroke="#10b981" strokeWidth={1} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>

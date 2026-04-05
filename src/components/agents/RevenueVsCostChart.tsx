@@ -56,7 +56,7 @@ export default function RevenueVsCostChart({ targets, costs }: RevenueVsCostChar
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}M`} />
           <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
-          <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+          <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} isAnimationActive={false}>
             {data.map((entry, index) => (
               <rect key={index} fill={entry.fill} />
             ))}

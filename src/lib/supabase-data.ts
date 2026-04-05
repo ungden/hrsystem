@@ -801,7 +801,7 @@ export async function calculateEmployeeScores(monthNumber?: number) {
   ]);
 
   const scoreMap = new Map<number, { done: number; total: number; points: number; totalPoints: number }>();
-  employees.filter((e: { status: string }) => e.status === 'active').forEach((emp: { id: number }) => {
+  employees.filter((e: { status: string }) => e.status === 'Đang làm việc').forEach((emp: { id: number }) => {
     scoreMap.set(emp.id, { done: 0, total: 0, points: 0, totalPoints: 0 });
   });
 
@@ -818,7 +818,7 @@ export async function calculateEmployeeScores(monthNumber?: number) {
   });
 
   return employees
-    .filter((e: { status: string }) => e.status === 'active')
+    .filter((e: { status: string }) => e.status === 'Đang làm việc')
     .map((emp: { id: number; name: string; department: string; role: string; base_salary: number }) => {
       const entry = scoreMap.get(emp.id) || { done: 0, total: 0, points: 0, totalPoints: 0 };
       const maxPoints = Math.max(entry.totalPoints, 1000);

@@ -86,7 +86,7 @@ export async function generatePayslip(employeeId: string, month: number, year: n
   ]);
 
   const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);
-  if (!emp || emp.status === 'inactive') return null;
+  if (!emp || emp.status !== 'Đang làm việc') return null;
 
   const career = employeeCareers.find((c: { employee_id: number }) => c.employee_id === emp.id);
   const baseSalary = career?.current_salary || 12_000_000;
@@ -97,7 +97,7 @@ export async function generatePayslip(employeeId: string, month: number, year: n
   // Allowances from finance_settings or defaults
   const phuCapAnTrua = (financeSettings?.lunch_allowance || 400_000) as number;
   const phuCapXangXe = (financeSettings?.fuel_allowance || 1_000_000) as number;
-  const phuCapDienThoai = (career?.level_code || 'L3') >= 'L5'
+  const phuCapDienThoai = parseInt((career?.level_code || 'L3').replace('L', '')) >= 5
     ? ((financeSettings?.phone_allowance || 500_000) as number)
     : 0;
 
@@ -244,7 +244,7 @@ export async function generateAllPayslips(month: number, year: number = 2026): P
   const employees = await getEmployees();
   const results = await Promise.all(
     employees
-      .filter((e: { status: string }) => e.status !== 'inactive')
+      .filter((e: { status: string }) => e.status === 'Đang làm việc')
       .map((e: { id: number }) => generatePayslip(String(e.id), month, year))
   );
   return results.filter((p): p is PayslipMonth => p !== null);
@@ -266,7 +266,7 @@ export async function generateEmployeeKPICard(employeeId: string, quarter: strin
   ]);
 
   const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);
-  if (!emp || emp.status === 'inactive') return null;
+  if (!emp || emp.status !== 'Đang làm việc') return null;
 
   const career = employeeCareers.find((c: { employee_id: number }) => c.employee_id === emp.id);
   const templates = deptKPITemplates[emp.department] || deptKPITemplates['Ban Giam doc'];
@@ -334,7 +334,7 @@ export async function generateAllKPICards(quarter: string = 'Q2/2026'): Promise<
   const employees = await getEmployees();
   const results = await Promise.all(
     employees
-      .filter((e: { status: string }) => e.status !== 'inactive')
+      .filter((e: { status: string }) => e.status === 'Đang làm việc')
       .map((e: { id: number }) => generateEmployeeKPICard(String(e.id), quarter))
   );
   return results.filter((k): k is EmployeeKPICard => k !== null);

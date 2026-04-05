@@ -29,7 +29,7 @@ export default function CashFlowChart({ cashFlows, type = 'cumulative' }: CashFl
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}M`} />
             <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
-            <Area type="monotone" dataKey="Số dư" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+            <Area type="monotone" dataKey="Số dư" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -53,9 +53,9 @@ export default function CashFlowChart({ cashFlows, type = 'cumulative' }: CashFl
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}M`} />
           <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="Kinh doanh" fill="#10b981" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="Đầu tư" fill="#f59e0b" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="Tài chính" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="Kinh doanh" fill="#10b981" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Đầu tư" fill="#f59e0b" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Tài chính" fill="#8b5cf6" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

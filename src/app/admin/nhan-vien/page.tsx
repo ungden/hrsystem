@@ -123,7 +123,7 @@ export default function EmployeeListPage() {
             <div className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {emp.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                  {(emp.name || 'N/A').split(' ').map(w => w[0]).slice(0, 2).join('')}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{emp.name}</p>

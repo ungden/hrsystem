@@ -63,10 +63,10 @@ export default function PnLDetailPage() {
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${v}M`} />
                   <Tooltip formatter={(v: number) => [`${v}M VND`, '']} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Kinh doanh" stackId="a" fill="#f59e0b" />
-                  <Bar dataKey="Marketing" stackId="a" fill="#ec4899" />
-                  <Bar dataKey="CNTT" stackId="a" fill="#10b981" />
-                  <Bar dataKey="Khác" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Kinh doanh" stackId="a" fill="#f59e0b" isAnimationActive={false} />
+                  <Bar dataKey="Marketing" stackId="a" fill="#ec4899" isAnimationActive={false} />
+                  <Bar dataKey="CNTT" stackId="a" fill="#10b981" isAnimationActive={false} />
+                  <Bar dataKey="Khác" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -84,8 +84,8 @@ export default function PnLDetailPage() {
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${v}M`} />
                   <Tooltip formatter={(v: number) => [`${v}M VND`, '']} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Thực tế" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Ngân sách" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Thực tế" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Bar dataKey="Ngân sách" fill="#e2e8f0" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

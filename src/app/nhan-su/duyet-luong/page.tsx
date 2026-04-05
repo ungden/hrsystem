@@ -126,7 +126,7 @@ export default function DuyetLuongPage() {
               department: "",
               role: "",
               base_salary: p.base_salary,
-              status: "active",
+              status: "Đang làm việc",
             },
             baseSalary: p.base_salary,
             allowances: p.allowances,
@@ -142,7 +142,7 @@ export default function DuyetLuongPage() {
         // If no payroll entries yet, generate rows from active employees
         if (rows.length === 0) {
           const fallbackRows: SalaryRow[] = employees
-            .filter((e) => e.status === "active")
+            .filter((e) => e.status === "Đang làm việc")
             .map((emp) => {
               const score = scoreMap.get(emp.id);
               const bonusFromScore = score

@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { CalendarCheck, Clock, Loader2, LogIn, LogOut } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import { getEmployees, getLeaveRequests, checkIn, checkOut, getAttendanceByMonth } from '@/lib/supabase-data';
-
-const DEMO_EMP_ID = 8;
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 const statusLabels: Record<string, string> = { present: '✓', late: '⏰', absent: '✗', off: '—', future: '', leave: '🌴' };
 const statusBg: Record<string, string> = { present: 'bg-green-50', late: 'bg-orange-50', absent: 'bg-red-50', off: 'bg-slate-50', future: 'bg-white', leave: 'bg-cyan-50' };
@@ -28,7 +27,7 @@ export default function MyAttendancePage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year] = useState(2026);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; department: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [leaveUsed, setLeaveUsed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState<AttendanceDay[]>([]);
@@ -122,7 +121,7 @@ export default function MyAttendancePage() {
             <p className="text-sm text-slate-500 mt-1">Bảng chấm công tháng {month}/{year}</p>
           </div>
           <div className="flex gap-2">
-            <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+            <select value={selectedEmpId} onChange={e => { const v = Number(e.target.value); setSelectedEmpId(v); persistEmpId(v); }}
               className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
               {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>

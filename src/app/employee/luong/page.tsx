@@ -3,16 +3,15 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Gift, TrendingDown, Loader2 } from 'lucide-react';
 import { getEmployees, getPayrolls } from '@/lib/supabase-data';
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n); }
-
-const DEMO_EMP_ID = 8;
 
 export default function MyPayslipPage() {
   const [employee, setEmployee] = useState<{ id: number; name: string; role: string; department: string } | null>(null);
   const [payroll, setPayroll] = useState<{ base: number; commission: number; kpi_bonus: number; deduction: number; total: number; status: string } | null>(null);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [month, setMonth] = useState('03/2026');
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +41,7 @@ export default function MyPayslipPage() {
             <p className="text-sm text-slate-500 mt-1">Phiếu lương của bạn — Dữ liệu từ Supabase</p>
           </div>
           <div className="flex gap-2">
-            <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+            <select value={selectedEmpId} onChange={e => { const v = Number(e.target.value); setSelectedEmpId(v); persistEmpId(v); }}
               className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
               {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>

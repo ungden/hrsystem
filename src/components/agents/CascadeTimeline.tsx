@@ -29,7 +29,13 @@ export default function CascadeTimeline({ cascade }: CascadeTimelineProps) {
   const toggleM = (id: string) => setExpandedM(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleW = (id: string) => setExpandedW(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
-  if (!cascade.annualTargets.length) return null;
+  if (!cascade.annualTargets.length) {
+    return (
+      <div className="h-[200px] flex items-center justify-center bg-slate-50 rounded-lg">
+        <p className="text-sm text-slate-400">Chưa có dữ liệu cascade</p>
+      </div>
+    );
+  }
   const annual = cascade.annualTargets[0];
   const annualPct = annual.targetValue > 0 ? Math.round(annual.currentValue / annual.targetValue * 100) : 0;
 

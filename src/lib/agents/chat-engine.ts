@@ -186,7 +186,7 @@ const commands: Command[] = [
       const employeeCareers = await getEmployeeCareers();
       const departments = [...new Set(employees.map((e: { department: string }) => e.department))];
 
-      const active = employees.filter((e: { status: string }) => e.status !== 'inactive');
+      const active = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
       const levelCounts: Record<string, number> = {};
       employeeCareers.forEach((c: { level_code: string }) => { levelCounts[c.level_code] = (levelCounts[c.level_code] || 0) + 1; });
 
@@ -239,7 +239,7 @@ const commands: Command[] = [
     handler: async (_, state) => {
       const employees = await getEmployees();
 
-      const empScores = employees.filter((e: { status: string }) => e.status !== 'inactive').map((emp: { id: number; name: string }) => {
+      const empScores = employees.filter((e: { status: string }) => e.status === 'Đang làm việc').map((emp: { id: number; name: string }) => {
         const plans = state.individualPlans.filter(p => p.employeeId === String(emp.id));
         const completed = plans.filter(p => p.status === 'completed').length;
         return { emp, completed, total: plans.length, rate: plans.length > 0 ? Math.round(completed / plans.length * 100) : 0 };
@@ -260,7 +260,7 @@ const commands: Command[] = [
     agent: 'finance',
     handler: async () => {
       const employees = await getEmployees();
-      const active = employees.filter((e: { status: string }) => e.status !== 'inactive');
+      const active = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
       let totalBonus = 0;
       let result = `BANG TINH THUONG Q2/2026\n\n`;
       result += `${'Nhan vien'.padEnd(22)} ${'KPI'.padStart(5)} ${'Loai'.padStart(8)} ${'Thuong'.padStart(14)}\n`;
@@ -286,7 +286,7 @@ const commands: Command[] = [
     handler: async () => {
       const employees = await getEmployees();
       const employeeCareers = await getEmployeeCareers();
-      const active = employees.filter((e: { status: string }) => e.status !== 'inactive');
+      const active = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
       const ready: string[] = [];
       const notReady: string[] = [];
 
@@ -398,7 +398,7 @@ async function handleDeptCommand(deptName: string, state: AgentCoordinationState
   const dept = departments.find((d: string) => d.toLowerCase().includes(deptName.toLowerCase()));
   if (!dept) return `Khong tim thay phong ban "${deptName}". Cac PB: ${departments.join(', ')}`;
 
-  const deptEmps = employees.filter((e: { department: string; status: string }) => e.department === dept && e.status !== 'inactive');
+  const deptEmps = employees.filter((e: { department: string; status: string }) => e.department === dept && e.status === 'Đang làm việc');
   const deptPlans = state.individualPlans.filter(p => deptEmps.some((e: { id: number }) => String(e.id) === p.employeeId));
   const completed = deptPlans.filter(p => p.status === 'completed').length;
   const atRisk = deptPlans.filter(p => p.status === 'at_risk').length;

@@ -28,6 +28,14 @@ export default function EmployeeScatter({ projections, careers }: EmployeeScatte
 
   if (!mounted) return <div className="h-[300px] bg-slate-50 rounded-lg animate-pulse" />;
 
+  if (!projections.length) {
+    return (
+      <div className="h-[300px] flex items-center justify-center bg-slate-50 rounded-lg">
+        <p className="text-sm text-slate-400">Chưa có dữ liệu</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">

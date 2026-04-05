@@ -78,7 +78,7 @@ export default function KanbanPage() {
   useEffect(() => { loadData(); }, [filterMonth]);
 
   const departments = useMemo(() => [...new Set(employees.map(e => e.department))], [employees]);
-  const activeEmployees = useMemo(() => employees.filter(e => e.status === "active"), [employees]);
+  const activeEmployees = useMemo(() => employees.filter(e => e.status === "Đang làm việc"), [employees]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {

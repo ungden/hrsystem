@@ -31,10 +31,10 @@ export default function BudgetVarianceBars({ statements }: BudgetVarianceBarsPro
           <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}M`} />
           <Tooltip formatter={(v: number) => [`${v}M VND`, '']} />
           <Legend wrapperStyle={{ fontSize: 10 }} />
-          <Bar dataKey="DT thực tế" fill="#10b981" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="DT ngân sách" fill="#10b981" fillOpacity={0.3} stroke="#10b981" strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="CP thực tế" fill="#ef4444" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="CP ngân sách" fill="#ef4444" fillOpacity={0.3} stroke="#ef4444" strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="DT thực tế" fill="#10b981" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="DT ngân sách" fill="#10b981" fillOpacity={0.3} stroke="#10b981" strokeDasharray="3 3" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="CP thực tế" fill="#ef4444" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="CP ngân sách" fill="#ef4444" fillOpacity={0.3} stroke="#ef4444" strokeDasharray="3 3" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

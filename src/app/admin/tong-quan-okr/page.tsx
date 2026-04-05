@@ -64,7 +64,7 @@ export default function OKRTreePage() {
           getMasterPlans(),
         ]);
 
-        const activeEmps = (emps as Employee[]).filter(e => e.status === 'active');
+        const activeEmps = (emps as Employee[]).filter(e => e.status === 'Đang làm việc');
         setEmployees(activeEmps);
         setTasks(allTasks as Task[]);
         setMasterPlans(plans as MasterPlan[]);

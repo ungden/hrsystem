@@ -271,7 +271,7 @@ export async function generateAllCascades(): Promise<EmployeeCascade[]> {
   const employees = await getEmployees();
   return Promise.all(
     employees
-      .filter((e: { status: string }) => e.status !== 'inactive')
+      .filter((e: { status: string }) => e.status === 'Đang làm việc')
       .map((e: { id: number }) => generateEmployeeCascade(String(e.id)))
   );
 }

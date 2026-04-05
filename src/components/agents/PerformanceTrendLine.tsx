@@ -19,6 +19,14 @@ export default function PerformanceTrendLine({ ratings }: PerformanceTrendLinePr
 
   if (!mounted) return <div className="h-[200px] bg-slate-50 rounded-lg animate-pulse" />;
 
+  if (!ratings.length) {
+    return (
+      <div className="h-[200px] flex items-center justify-center bg-slate-50 rounded-lg">
+        <p className="text-sm text-slate-400">Chưa có dữ liệu đánh giá</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[200px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -29,7 +37,7 @@ export default function PerformanceTrendLine({ ratings }: PerformanceTrendLinePr
           <Tooltip />
           <ReferenceLine y={75} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Strong", fontSize: 10, fill: '#10b981' }} />
           <ReferenceLine y={55} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "Good", fontSize: 10, fill: '#f59e0b' }} />
-          <Line type="monotone" dataKey="KPI Score" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 5, fill: '#3b82f6' }} />
+          <Line type="monotone" dataKey="KPI Score" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 5, fill: '#3b82f6' }} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>

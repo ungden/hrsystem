@@ -31,7 +31,7 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
     getMasterPlans({ role: 'ceo', year }),
   ]);
 
-  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const activeEmployees = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
   const totalSalary = employeeCareers.reduce((s: number, c: { current_salary: number }) => s + (c.current_salary || 0), 0);
   const departments = [...new Set(employees.map((e: { department: string }) => e.department))];
 

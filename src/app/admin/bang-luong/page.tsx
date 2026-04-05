@@ -97,9 +97,10 @@ export default function PayslipHubPage() {
         actions={
           <select value={month} onChange={e => { setMonth(e.target.value); setSelectedId(null); setLoading(true); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium">
-            <option value="03/2026">Tháng 3/2026</option>
-            <option value="02/2026">Tháng 2/2026</option>
-            <option value="01/2026">Tháng 1/2026</option>
+            {Array.from({ length: 12 }, (_, i) => 12 - i).map(m => {
+              const value = `${String(m).padStart(2, '0')}/2026`;
+              return <option key={value} value={value}>Tháng {m}/2026</option>;
+            })}
           </select>
         }
       />

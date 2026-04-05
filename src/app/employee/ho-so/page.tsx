@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Calendar, DollarSign, Building2, Loader2, Edit3, Save, X } from 'lucide-react';
 import { getEmployees, getTasks, getPayrolls, getLeaveRequests, updateEmployee } from '@/lib/supabase-data';
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n); }
-
-const DEMO_EMP_ID = 8;
 
 export default function MyProfilePage() {
   const [employee, setEmployee] = useState<Record<string, unknown> | null>(null);
@@ -14,7 +13,7 @@ export default function MyProfilePage() {
   const [payroll, setPayroll] = useState<{ total: number } | null>(null);
   const [leaveUsed, setLeaveUsed] = useState(0);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [loading, setLoading] = useState(true);
 
   // Edit mode
@@ -81,7 +80,7 @@ export default function MyProfilePage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Hồ sơ cá nhân</h1>
             <p className="text-sm text-slate-500 mt-1">Thông tin và lộ trình nghề nghiệp</p>
           </div>
-          <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+          <select value={selectedEmpId} onChange={e => { const v = Number(e.target.value); setSelectedEmpId(v); persistEmpId(v); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
             {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>

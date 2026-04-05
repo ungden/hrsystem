@@ -11,6 +11,7 @@ import {
   deleteTaskComment, getAttachments, uploadTaskAttachment,
   deleteAttachment, getEmployees,
 } from "@/lib/supabase-data";
+import { getSelectedEmpId } from '@/lib/employee-context';
 
 interface TaskData {
   id: string;
@@ -48,8 +49,6 @@ interface Employee {
   name: string;
   department: string;
 }
-
-const DEMO_USER_ID = 8;
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   urgent: { label: "Khẩn cấp", color: "bg-red-100 text-red-700" },
@@ -155,7 +154,7 @@ export default function TaskDetailModal({
     try {
       for (const file of Array.from(fileList)) {
         if (file.size > 10 * 1024 * 1024) { alert("Max 10MB"); continue; }
-        const result = await uploadTaskAttachment(file, { task_id: task.id, uploaded_by: DEMO_USER_ID });
+        const result = await uploadTaskAttachment(file, { task_id: task.id, uploaded_by: getSelectedEmpId() });
         setAttachments(prev => [...prev, result]);
       }
     } catch (e) { console.error(e); }
@@ -175,7 +174,7 @@ export default function TaskDetailModal({
     try {
       await addTaskComment({
         task_id: task.id,
-        author_id: DEMO_USER_ID,
+        author_id: getSelectedEmpId(),
         content: commentText,
         mentions: selectedMentions,
       });

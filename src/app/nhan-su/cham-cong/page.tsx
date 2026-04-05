@@ -127,7 +127,7 @@ export default function ChamCongPage() {
     }
 
     return employees
-      .filter((e) => e.status === "active")
+      .filter((e) => e.status === "Đang làm việc")
       .map((emp) => {
         const empAtt = attMap.get(emp.id) || new Map<number, string>();
         let cong = 0;

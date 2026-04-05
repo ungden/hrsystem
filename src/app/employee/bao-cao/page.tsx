@@ -9,6 +9,7 @@ import {
 } from '@/lib/supabase-data';
 import { calculateTaskPoints, calculateSalaryImpact } from '@/lib/ai-points';
 import EvidenceUploader from '@/components/reports/EvidenceUploader';
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-slate-100', text: 'text-slate-600', label: 'Nháp' },
@@ -20,8 +21,6 @@ const statusColors: Record<string, { bg: string; text: string; label: string }> 
 interface FormField {
   key: string; label: string; type: string; unit: string; required: boolean; placeholder: string;
 }
-
-const DEMO_EMPLOYEE_ID = 8;
 
 export default function DailyReportPage() {
   const [employee, setEmployee] = useState<{ id: number; name: string; role: string; department: string } | null>(null);
@@ -46,7 +45,7 @@ export default function DailyReportPage() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMPLOYEE_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string; department: string }>>([]);
 
   const today = new Date().toISOString().split('T')[0];
@@ -193,7 +192,7 @@ export default function DailyReportPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="text-[11px] font-semibold text-slate-500 uppercase">Nhân viên</label>
-            <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+            <select value={selectedEmpId} onChange={e => { persistEmpId(Number(e.target.value)); setSelectedEmpId(Number(e.target.value)); }}
               className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium">
               {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name} — {e.role}</option>)}
             </select>

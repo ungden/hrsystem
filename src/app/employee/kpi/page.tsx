@@ -5,15 +5,14 @@ import { Target, TrendingUp, CheckCircle2, Loader2 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import ProgressRing from '@/components/agents/ProgressRing';
 import { getEmployees, getTasks, getKPIs } from '@/lib/supabase-data';
-
-const DEMO_EMP_ID = 8;
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 export default function MyKPIPage() {
   const [employee, setEmployee] = useState<{ id: number; name: string; role: string; department: string } | null>(null);
   const [tasks, setTasks] = useState<Array<{ id: string; title: string; status: string; kpi_metric: string | null; kpi_target: string | null; kpi_unit: string | null; month_number: number }>>([]);
   const [kpis, setKPIs] = useState<Array<{ id: number; title: string; target: number; current: number; progress: number; status: string; department: string }>>([]);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; department: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function MyKPIPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">KPI & Mục tiêu</h1>
             <p className="text-sm text-slate-500 mt-1">Dữ liệu từ Supabase — {tasks.length} tasks, {kpis.length} KPIs phòng ban</p>
           </div>
-          <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+          <select value={selectedEmpId} onChange={e => { persistEmpId(Number(e.target.value)); setSelectedEmpId(Number(e.target.value)); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
             {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>

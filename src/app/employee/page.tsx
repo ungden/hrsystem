@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import { ListChecks, Target, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import { getEmployees, getTasks, getPayrolls, getDailyReports } from '@/lib/supabase-data';
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n); }
-
-const DEMO_EMP_ID = 8;
 
 export default function EmployeeDashboard() {
   const [employee, setEmployee] = useState<{ id: number; name: string; role: string; department: string; base_salary: number; join_date: string } | null>(null);
@@ -15,7 +14,7 @@ export default function EmployeeDashboard() {
   const [payroll, setPayroll] = useState<{ base: number; commission: number; kpi_bonus: number; deduction: number; total: number } | null>(null);
   const [reportCount, setReportCount] = useState(0);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string; department: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,7 +51,7 @@ export default function EmployeeDashboard() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Xin chào, {employee.name}!</h1>
             <p className="text-sm text-slate-500 mt-1">{employee.role} - {employee.department}</p>
           </div>
-          <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+          <select value={selectedEmpId} onChange={e => { const v = Number(e.target.value); setSelectedEmpId(v); persistEmpId(v); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
             {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>

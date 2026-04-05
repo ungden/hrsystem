@@ -247,7 +247,7 @@ export async function generateDepartmentDetails(
   ]);
 
   const departments = [...new Set(employees.map((e: { department: string }) => e.department))];
-  const activeEmps = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const activeEmps = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
 
   // Channel revenue lookup for department contribution
   const totalChannelRevenue = channelEconomics.reduce((s: number, ch: { monthly_revenue: number }) => s + (ch.monthly_revenue || 0), 0);

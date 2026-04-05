@@ -18,7 +18,7 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
     getPerformanceRatings(),
   ]);
 
-  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const activeEmployees = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
   const departments = [...new Set(employees.map((e: { department: string }) => e.department))];
 
   // Finance settings with defaults

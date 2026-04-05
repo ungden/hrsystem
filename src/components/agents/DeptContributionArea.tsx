@@ -31,10 +31,10 @@ export default function DeptContributionArea({ statements }: DeptContributionAre
           <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}M`} />
           <Tooltip formatter={(v: number) => [`${v}M VND`, '']} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Area type="monotone" dataKey="Kinh doanh" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
-          <Area type="monotone" dataKey="Marketing" stackId="1" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} />
-          <Area type="monotone" dataKey="CNTT" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-          <Area type="monotone" dataKey="Khác" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
+          <Area type="monotone" dataKey="Kinh doanh" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} isAnimationActive={false} />
+          <Area type="monotone" dataKey="Marketing" stackId="1" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} isAnimationActive={false} />
+          <Area type="monotone" dataKey="CNTT" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} isAnimationActive={false} />
+          <Area type="monotone" dataKey="Khác" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>

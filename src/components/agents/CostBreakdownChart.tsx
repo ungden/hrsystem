@@ -31,10 +31,10 @@ export default function CostBreakdownChart({ projections }: CostBreakdownChartPr
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}M`} />
           <Tooltip formatter={(value: number) => [`${value}M VND`, '']} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="Lương cơ bản" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="Phụ cấp" stackId="a" fill="#8b5cf6" />
-          <Bar dataKey="Bảo hiểm" stackId="a" fill="#f59e0b" />
-          <Bar dataKey="Thưởng dự kiến" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Lương cơ bản" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Phụ cấp" stackId="a" fill="#8b5cf6" isAnimationActive={false} />
+          <Bar dataKey="Bảo hiểm" stackId="a" fill="#f59e0b" isAnimationActive={false} />
+          <Bar dataKey="Thưởng dự kiến" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

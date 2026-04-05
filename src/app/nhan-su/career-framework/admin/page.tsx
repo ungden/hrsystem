@@ -238,7 +238,7 @@ export default function CareerAdminPage() {
     loadAll();
   }, []);
 
-  const activeEmployees = employees.filter(e => e.status === "active");
+  const activeEmployees = employees.filter(e => e.status === "Đang làm việc");
   const activeLevels = levels.filter(l => l.is_active);
 
   const addLog = useCallback((action: Omit<AdminAction, "id" | "timestamp">) => {

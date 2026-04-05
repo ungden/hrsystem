@@ -25,8 +25,7 @@ import {
   getEmployeeCareer,
   getCareerLevel,
 } from "@/lib/supabase-data";
-
-const DEMO_EMP_ID = 8;
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 type TaskStatus = "todo" | "in_progress" | "review" | "done";
 const statusOrder: TaskStatus[] = ["todo", "in_progress", "review", "done"];
@@ -62,7 +61,7 @@ interface CareerInfo {
 export default function CongViecCuaToiPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(true);
   const [pointStats, setPointStats] = useState({ totalPoints: 0, earnedPoints: 0, taskCount: 0 });
@@ -188,11 +187,11 @@ export default function CongViecCuaToiPage() {
             {/* Employee selector */}
             <select
               value={selectedEmpId}
-              onChange={(e) => setSelectedEmpId(Number(e.target.value))}
+              onChange={(e) => { const id = Number(e.target.value); setSelectedEmpId(id); persistEmpId(id); }}
               className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {allEmployees
-                .filter((e) => e.status === "active")
+                .filter((e) => e.status === "Đang làm việc")
                 .map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name} - {emp.department}

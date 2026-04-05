@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Plus, Loader2, CheckCircle2, Clock, XCircle, X } from 'lucide-react';
 import { getEmployees, getLeaveRequests, createLeaveRequest } from '@/lib/supabase-data';
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 const leaveTypes = ['Nghỉ phép', 'Nghỉ ốm', 'Nghỉ không lương', 'Nghỉ thai sản', 'Nghỉ việc riêng'];
 const statusCfg: Record<string, { icon: typeof Clock; bg: string; text: string; label: string }> = {
@@ -10,8 +11,6 @@ const statusCfg: Record<string, { icon: typeof Clock; bg: string; text: string; 
   approved: { icon: CheckCircle2, bg: 'bg-green-100', text: 'text-green-700', label: 'Đã duyệt' },
   rejected: { icon: XCircle, bg: 'bg-red-100', text: 'text-red-700', label: 'Từ chối' },
 };
-
-const DEMO_EMP_ID = 8;
 
 export default function LeavePage() {
   const [requests, setRequests] = useState<Array<{
@@ -22,7 +21,7 @@ export default function LeavePage() {
   const [employees, setEmployees] = useState<Array<{ id: number; name: string; department: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [isAdmin, setIsAdmin] = useState(false);
   const [form, setForm] = useState({ leave_type: 'Nghỉ phép', start_date: '', end_date: '', reason: '' });
 
@@ -82,7 +81,7 @@ export default function LeavePage() {
       {/* Employee selector */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
         <div className="flex items-center gap-3">
-          <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          <select value={selectedEmpId} onChange={e => { persistEmpId(Number(e.target.value)); setSelectedEmpId(Number(e.target.value)); }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
             {employees.map(e => <option key={e.id} value={e.id}>{e.name} — {e.department}</option>)}
           </select>
           <button onClick={() => setIsAdmin(!isAdmin)} className={`text-[11px] px-2 py-1 rounded ${isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>

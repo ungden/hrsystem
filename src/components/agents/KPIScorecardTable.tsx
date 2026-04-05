@@ -93,7 +93,7 @@ export default function KPIScorecardTable({ card }: KPIScorecardTableProps) {
               <XAxis type="number" domain={[0, 120]} tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
               <Tooltip formatter={(v: number) => [`${v}%`, 'Đạt']} />
-              <Bar dataKey="Đạt được" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="Đạt được" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {chartData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
               </Bar>
             </BarChart>

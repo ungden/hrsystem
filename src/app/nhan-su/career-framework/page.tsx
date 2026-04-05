@@ -320,7 +320,7 @@ export default function CareerFrameworkPage() {
       setFutureLevels(future);
 
       setEmployees(empsData);
-      const activeEmps = empsData.filter((e: EmployeeData) => e.status !== "inactive");
+      const activeEmps = empsData.filter((e: EmployeeData) => e.status === "Đang làm việc");
       setActiveEmployees(activeEmps);
       setEmployeeCareers(careersData);
 

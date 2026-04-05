@@ -214,7 +214,7 @@ export default function EmployeeCareerPage() {
         </div>
         <p className="text-slate-700 font-medium text-lg">{employee.name}</p>
         <p className="text-slate-500 text-sm mt-1">
-          {employee.status === "inactive"
+          {employee.status !== "Đang làm việc"
             ? "Nhân viên đã nghỉ việc - không có dữ liệu lộ trình"
             : "Chưa có dữ liệu lộ trình nghề nghiệp"}
         </p>

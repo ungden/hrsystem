@@ -12,7 +12,7 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
     getTasks(),
   ]);
 
-  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const activeEmployees = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
   const messages: AgentMessage[] = [];
 
   // Build task completion map per employee: { empId → { done, total, completionRate } }

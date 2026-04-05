@@ -71,7 +71,7 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
         ]);
 
         const filtered = allEmployees.filter(
-          (e: Employee) => e.department === deptName && e.status === 'active'
+          (e: Employee) => e.department === deptName && e.status === 'Đang làm việc'
         );
         setDeptEmployees(filtered);
 

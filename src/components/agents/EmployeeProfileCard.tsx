@@ -29,11 +29,11 @@ export default function EmployeeProfileCard({ employee, salary }: EmployeeProfil
           <p className="text-sm text-slate-500">{employee.role} - {employee.department}</p>
           <div className="flex items-center gap-1 mt-1">
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-              employee.status === 'active' ? 'bg-green-100 text-green-700' :
-              employee.status === 'on_leave' ? 'bg-orange-100 text-orange-700' :
+              employee.status === 'Đang làm việc' ? 'bg-green-100 text-green-700' :
+              employee.status === 'Nghỉ phép' ? 'bg-orange-100 text-orange-700' :
               'bg-red-100 text-red-700'
             }`}>
-              {employee.status === 'active' ? 'Đang làm' : employee.status === 'on_leave' ? 'Nghỉ phép' : 'Đã nghỉ'}
+              {employee.status === 'Đang làm việc' ? 'Đang làm' : employee.status === 'Nghỉ phép' ? 'Nghỉ phép' : 'Đã nghỉ'}
             </span>
           </div>
         </div>

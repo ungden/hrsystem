@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ListChecks, CheckCircle2, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import { getEmployees, getTasks, updateTaskStatus } from '@/lib/supabase-data';
-
-const DEMO_EMP_ID = 8;
+import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 
 const statusCols = [
   { key: 'todo', label: 'Chưa làm', color: 'border-slate-300', bg: 'bg-slate-50' },
@@ -22,7 +21,7 @@ interface Task {
 export default function MyTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string }>>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState(DEMO_EMP_ID);
+  const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,7 +57,7 @@ export default function MyTasksPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Công việc của tôi</h1>
             <p className="text-sm text-slate-500 mt-1">Dữ liệu từ Supabase — {tasks.length} tasks</p>
           </div>
-          <select value={selectedEmpId} onChange={e => setSelectedEmpId(Number(e.target.value))}
+          <select value={selectedEmpId} onChange={e => { persistEmpId(Number(e.target.value)); setSelectedEmpId(Number(e.target.value)); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
             {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>

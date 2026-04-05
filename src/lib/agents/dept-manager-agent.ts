@@ -10,7 +10,7 @@ export async function runDeptManagerAgent(goals: DepartmentGoal[]): Promise<{
     getTasks(),
   ]);
 
-  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const activeEmployees = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
   const departments = [...new Set(activeEmployees.map((e: { department: string }) => e.department))];
 
   const allPlans: IndividualPlan[] = [];

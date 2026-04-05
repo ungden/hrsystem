@@ -108,7 +108,7 @@ export default function KanbanPage() {
           Kanban board
         </span>
         <Link
-          href="/nhan-su/kanban/bang-diem"
+          href="/admin/bang-thuong"
           className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
         >
           Bảng điểm

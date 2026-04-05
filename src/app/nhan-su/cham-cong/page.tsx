@@ -15,7 +15,7 @@ import {
   statusLabels,
   formatCurrency,
 } from "@/lib/mock-data";
-import Link from "next/link";
+
 import PageHeader from "@/components/PageHeader";
 
 type ViewTab = "chamcong" | "baocao";
@@ -118,13 +118,17 @@ export default function ChamCongPage() {
             <CalendarCheck size={15} />
             Chấm công
           </button>
-          <Link
-            href="/nhan-su/cham-cong/bao-cao"
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          <button
+            onClick={() => setActiveTab("baocao")}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === "baocao"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
           >
             <FileBarChart size={15} />
             Báo cáo
-          </Link>
+          </button>
         </div>
       </div>
 

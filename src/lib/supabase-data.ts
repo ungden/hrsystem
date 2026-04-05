@@ -69,7 +69,7 @@ export async function getMonthlyPnL() {
 }
 
 export async function getPayrolls(month?: string) {
-  let query = supabase.from('payrolls').select('*, employees(name, role, department)');
+  let query = supabase.from('payrolls').select('*');
   if (month) query = query.eq('month', month);
   const { data, error } = await query.order('employee_id');
   if (error) throw error;

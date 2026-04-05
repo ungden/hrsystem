@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import BalanceSheetView from '@/components/agents/BalanceSheetView';
 import FinancialHealthGauges from '@/components/agents/FinancialHealthGauges';
 import { runFullCoordination } from '@/lib/agents/coordinator';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 export default function BalanceSheetDetailPage() {
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Bảng Cân đối Kế toán" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
   const { balanceSheet } = state.financials;
   const bs = balanceSheet.data;
 

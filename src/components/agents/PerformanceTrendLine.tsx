@@ -2,20 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { EmployeeCareer } from '@/lib/mock-data';
 
 interface PerformanceTrendLineProps {
-  career: EmployeeCareer;
+  ratings: { period: string; kpi_score: number; tier: string }[];
 }
 
-export default function PerformanceTrendLine({ career }: PerformanceTrendLineProps) {
+export default function PerformanceTrendLine({ ratings }: PerformanceTrendLineProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const data = career.performanceHistory.map(h => ({
-    period: h.period,
-    'KPI Score': h.kpiScore,
-    'Xếp loại': h.rating,
+  const data = ratings.map(r => ({
+    period: r.period,
+    'KPI Score': r.kpi_score,
+    'Xếp loại': r.tier,
   }));
 
   if (!mounted) return <div className="h-[200px] bg-slate-50 rounded-lg animate-pulse" />;

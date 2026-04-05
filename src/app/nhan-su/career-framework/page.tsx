@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Layers,
@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ArrowRight,
   BookOpen,
-  HelpCircle,
   Lightbulb,
   GraduationCap,
   Calculator,
@@ -36,18 +35,19 @@ import {
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import { formatCurrency } from "@/lib/format";
 import {
-  careerLevels,
-  performanceRatings,
-  reviewCycleConfig,
-  salaryFormulaConfig,
-  employees,
-  employeeCareers,
-  getCareerLevel,
+  PERFORMANCE_RATINGS,
+  REVIEW_CYCLE_CONFIG,
+  SALARY_FORMULA_CONFIG,
+  type CareerLevel,
+} from "@/lib/career-config";
+import {
+  getCareerLevels,
+  getEmployeeCareers,
+  getEmployees,
   calculatePromotionReadiness,
-  formatCurrency,
-  CareerLevel,
-} from "@/lib/mock-data";
+} from "@/lib/supabase-data";
 
 type TabKey = "huong_dan" | "khung_cap_bac" | "thang_luong" | "quy_tac" | "phan_bo";
 
@@ -258,10 +258,45 @@ const RATING_BAR_COLORS: Record<string, string> = {
   red: "bg-red-400",
 };
 
+interface EmployeeData {
+  id: number;
+  name: string;
+  department: string;
+  role: string;
+  base_salary: number;
+  status: string;
+}
+
+interface EmployeeCareerData {
+  employee_id: number;
+  level_code: string;
+  track: string;
+  level_start_date: string;
+  current_salary: number;
+  promotion_eligible_date: string | null;
+}
+
+interface ReadinessResult {
+  overallReady: boolean;
+  avgKPIScore: number;
+}
+
 export default function CareerFrameworkPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("huong_dan");
   const [showFutureLevels, setShowFutureLevels] = useState(false);
   const [expandedGuides, setExpandedGuides] = useState<string[]>(["cap_bac"]);
+  const [loading, setLoading] = useState(true);
+
+  const [allLevels, setAllLevels] = useState<CareerLevel[]>([]);
+  const [activeLevels, setActiveLevels] = useState<CareerLevel[]>([]);
+  const [futureLevels, setFutureLevels] = useState<CareerLevel[]>([]);
+  const [employees, setEmployees] = useState<EmployeeData[]>([]);
+  const [activeEmployees, setActiveEmployees] = useState<EmployeeData[]>([]);
+  const [employeeCareers, setEmployeeCareers] = useState<EmployeeCareerData[]>([]);
+  const [eligibleCount, setEligibleCount] = useState(0);
+  const [avgKPI, setAvgKPI] = useState(0);
+  const [levelDistribution, setLevelDistribution] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [readinessMap, setReadinessMap] = useState<Map<number, ReadinessResult | null>>(new Map());
 
   const toggleGuide = (id: string) => {
     setExpandedGuides((prev) =>
@@ -269,49 +304,88 @@ export default function CareerFrameworkPage() {
     );
   };
 
-  const activeLevels = careerLevels.filter((l) => l.isActive);
-  const futureLevels = careerLevels.filter((l) => !l.isActive);
-  const activeEmployees = employees.filter((e) => e.trangThai !== "da_nghi");
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [levelsData, empsData, careersData] = await Promise.all([
+        getCareerLevels(),
+        getEmployees(),
+        getEmployeeCareers(),
+      ]);
 
-  const eligibleCount = useMemo(() => {
-    return activeEmployees.filter((e) => {
-      const readiness = calculatePromotionReadiness(e.id);
-      return readiness?.overallReady;
-    }).length;
+      setAllLevels(levelsData);
+      const active = levelsData.filter((l: CareerLevel) => l.is_active);
+      const future = levelsData.filter((l: CareerLevel) => !l.is_active);
+      setActiveLevels(active);
+      setFutureLevels(future);
+
+      setEmployees(empsData);
+      const activeEmps = empsData.filter((e: EmployeeData) => e.status !== "inactive");
+      setActiveEmployees(activeEmps);
+      setEmployeeCareers(careersData);
+
+      // Calculate level distribution
+      const counts: Record<string, number> = {};
+      active.forEach((l: CareerLevel) => (counts[l.code] = 0));
+      careersData.forEach((c: EmployeeCareerData) => {
+        if (counts[c.level_code] !== undefined) counts[c.level_code]++;
+      });
+      setLevelDistribution(
+        active.map((l: CareerLevel, i: number) => ({
+          name: `${l.code} - ${l.name_vi}`,
+          value: counts[l.code] || 0,
+          color: LEVEL_COLORS[i % LEVEL_COLORS.length],
+        }))
+      );
+
+      // Calculate promotion readiness for each active employee
+      const readinessEntries = await Promise.all(
+        activeEmps.map(async (emp: EmployeeData) => {
+          const r = await calculatePromotionReadiness(emp.id);
+          return [emp.id, r] as [number, ReadinessResult | null];
+        })
+      );
+      const rMap = new Map(readinessEntries);
+      setReadinessMap(rMap);
+
+      // Count eligible
+      let eligible = 0;
+      let totalKPI = 0;
+      let kpiCount = 0;
+      rMap.forEach((r) => {
+        if (r?.overallReady) eligible++;
+        if (r && r.avgKPIScore > 0) {
+          totalKPI += r.avgKPIScore;
+          kpiCount++;
+        }
+      });
+      setEligibleCount(eligible);
+      setAvgKPI(kpiCount > 0 ? Math.round(totalKPI / kpiCount) : 0);
+    } catch (err) {
+      console.error("Error loading career framework data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const avgKPI = useMemo(() => {
-    const careers = employeeCareers.filter((c) =>
-      c.performanceHistory.length > 0
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
     );
-    if (careers.length === 0) return 0;
-    const total = careers.reduce((sum, c) => {
-      const latest = c.performanceHistory[c.performanceHistory.length - 1];
-      return sum + (latest?.kpiScore || 0);
-    }, 0);
-    return Math.round(total / careers.length);
-  }, []);
-
-  // Distribution data for pie chart
-  const levelDistribution = useMemo(() => {
-    const counts: Record<string, number> = {};
-    activeLevels.forEach((l) => (counts[l.code] = 0));
-    employeeCareers.forEach((c) => {
-      if (counts[c.levelCode] !== undefined) counts[c.levelCode]++;
-    });
-    return activeLevels.map((l, i) => ({
-      name: `${l.code} - ${l.nameVi}`,
-      value: counts[l.code] || 0,
-      color: LEVEL_COLORS[i % LEVEL_COLORS.length],
-    }));
-  }, []);
+  }
 
   // Salary band chart data
   const salaryChartData = activeLevels.map((l) => ({
     name: l.code,
-    min: l.salaryBand.min / 1_000_000,
-    mid: l.salaryBand.mid / 1_000_000,
-    max: l.salaryBand.max / 1_000_000,
+    min: l.salary_band_min / 1_000_000,
+    mid: l.salary_band_mid / 1_000_000,
+    max: l.salary_band_max / 1_000_000,
   }));
 
   return (
@@ -433,7 +507,7 @@ export default function CareerFrameworkPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <div>
-                          <p className="text-sm font-medium text-slate-800">{level.nameVi}</p>
+                          <p className="text-sm font-medium text-slate-800">{level.name_vi}</p>
                           <p className="text-xs text-slate-400">{level.name}</p>
                         </div>
                       </td>
@@ -447,19 +521,19 @@ export default function CareerFrameworkPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right text-sm text-slate-600">
-                        {formatCurrency(level.salaryBand.min)}
+                        {formatCurrency(level.salary_band_min)}
                       </td>
                       <td className="px-5 py-3.5 text-right text-sm font-medium text-slate-800">
-                        {formatCurrency(level.salaryBand.mid)}
+                        {formatCurrency(level.salary_band_mid)}
                       </td>
                       <td className="px-5 py-3.5 text-right text-sm text-slate-600">
-                        {formatCurrency(level.salaryBand.max)}
+                        {formatCurrency(level.salary_band_max)}
                       </td>
                       <td className="px-5 py-3.5 text-center text-sm text-slate-600">
-                        {level.minTimeMonths} tháng
+                        {level.min_time_months} tháng
                       </td>
                       <td className="px-5 py-3.5 text-center">
-                        <span className="text-sm font-medium text-blue-600">{level.requiredKPIPercent}%</span>
+                        <span className="text-sm font-medium text-blue-600">{level.required_kpi_percent}%</span>
                       </td>
                     </tr>
                   ))}
@@ -494,10 +568,10 @@ export default function CareerFrameworkPage() {
                             {level.code}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-sm">{level.nameVi} ({level.name})</td>
+                        <td className="px-5 py-3 text-sm">{level.name_vi} ({level.name})</td>
                         <td className="px-5 py-3 text-sm">{level.track === "IC" ? "Chuyên gia" : "Quản lý"}</td>
                         <td className="px-5 py-3 text-right text-sm">
-                          {formatCurrency(level.salaryBand.min)} - {formatCurrency(level.salaryBand.max)}
+                          {formatCurrency(level.salary_band_min)} - {formatCurrency(level.salary_band_max)}
                         </td>
                       </tr>
                     ))}
@@ -539,12 +613,12 @@ export default function CareerFrameworkPage() {
             <h3 className="font-semibold text-slate-800 mb-4">Công thức lương</h3>
             <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[200px] bg-blue-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-blue-700">{salaryFormulaConfig.basePercent * 100}%</p>
+                <p className="text-2xl font-bold text-blue-700">{SALARY_FORMULA_CONFIG.basePercent * 100}%</p>
                 <p className="text-xs text-blue-500 mt-1">Lương cơ bản</p>
               </div>
               <div className="flex items-center text-slate-300 text-xl font-bold">+</div>
               <div className="flex-1 min-w-[200px] bg-green-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-700">{salaryFormulaConfig.kpiPercent * 100}%</p>
+                <p className="text-2xl font-bold text-green-700">{SALARY_FORMULA_CONFIG.kpiPercent * 100}%</p>
                 <p className="text-xs text-green-500 mt-1">Lương KPI</p>
               </div>
               <div className="flex items-center text-slate-300 text-xl font-bold">+</div>
@@ -569,14 +643,14 @@ export default function CareerFrameworkPage() {
                     <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-400">
                       <span className="text-sm font-bold text-blue-700">{level.code}</span>
                     </div>
-                    <p className="text-xs font-medium text-slate-700 mt-2 text-center">{level.nameVi}</p>
+                    <p className="text-xs font-medium text-slate-700 mt-2 text-center">{level.name_vi}</p>
                     <p className="text-[10px] text-slate-400">{level.name}</p>
                   </div>
                   {i < activeLevels.length - 1 && (
                     <div className="flex flex-col items-center mx-2">
                       <ArrowRight size={16} className="text-slate-300" />
                       <span className="text-[10px] text-slate-400 mt-0.5 whitespace-nowrap">
-                        {level.minTimeMonths} tháng
+                        {level.min_time_months} tháng
                       </span>
                     </div>
                   )}
@@ -598,7 +672,7 @@ export default function CareerFrameworkPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {performanceRatings.map((r) => (
+                  {PERFORMANCE_RATINGS.map((r) => (
                     <tr key={r.tier}>
                       <td className="px-5 py-3">
                         <StatusBadge status={`rating_${r.tier.toLowerCase()}`} />
@@ -634,7 +708,7 @@ export default function CareerFrameworkPage() {
                   <span className="text-sm font-medium text-blue-700">Đánh giá KPI</span>
                 </div>
                 <p className="text-2xl font-bold text-blue-800">Mỗi quý</p>
-                <p className="text-xs text-blue-500 mt-1">{reviewCycleConfig.kpiReviewMonths} tháng/lần</p>
+                <p className="text-xs text-blue-500 mt-1">{REVIEW_CYCLE_CONFIG.kpiReviewMonths} tháng/lần</p>
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -642,7 +716,7 @@ export default function CareerFrameworkPage() {
                   <span className="text-sm font-medium text-green-700">Xét lương</span>
                 </div>
                 <p className="text-2xl font-bold text-green-800">6 tháng</p>
-                <p className="text-xs text-green-500 mt-1">{reviewCycleConfig.salaryReviewMonths} tháng/lần</p>
+                <p className="text-xs text-green-500 mt-1">{REVIEW_CYCLE_CONFIG.salaryReviewMonths} tháng/lần</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -650,7 +724,7 @@ export default function CareerFrameworkPage() {
                   <span className="text-sm font-medium text-purple-700">Xét thăng tiến</span>
                 </div>
                 <p className="text-2xl font-bold text-purple-800">1 năm</p>
-                <p className="text-xs text-purple-500 mt-1">{reviewCycleConfig.promotionReviewMonths} tháng/lần</p>
+                <p className="text-xs text-purple-500 mt-1">{REVIEW_CYCLE_CONFIG.promotionReviewMonths} tháng/lần</p>
               </div>
             </div>
           </div>
@@ -719,9 +793,9 @@ export default function CareerFrameworkPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {activeEmployees.map((emp) => {
-                    const career = employeeCareers.find((c) => c.employeeId === emp.id);
-                    const level = career ? getCareerLevel(career.levelCode) : null;
-                    const readiness = calculatePromotionReadiness(emp.id);
+                    const career = employeeCareers.find((c) => c.employee_id === emp.id);
+                    const level = career ? activeLevels.find((l) => l.code === career.level_code) : null;
+                    const readiness = readinessMap.get(emp.id);
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-5 py-3">
@@ -731,15 +805,15 @@ export default function CareerFrameworkPage() {
                             </div>
                             <div>
                               <p className="text-sm font-medium text-slate-800">{emp.name}</p>
-                              <p className="text-xs text-slate-400">{emp.maSo}</p>
+                              <p className="text-xs text-slate-400">{emp.role}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-sm text-slate-600">{emp.phongBan}</td>
+                        <td className="px-5 py-3 text-sm text-slate-600">{emp.department}</td>
                         <td className="px-5 py-3 text-center">
                           {level && (
                             <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                              {level.code} - {level.nameVi}
+                              {level.code} - {level.name_vi}
                             </span>
                           )}
                         </td>

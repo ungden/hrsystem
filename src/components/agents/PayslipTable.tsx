@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { PayslipMonth } from '@/lib/cascade-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 interface PayslipTableProps {
   payslips: PayslipMonth[];

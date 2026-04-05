@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -27,18 +28,21 @@ import {
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import { formatCurrency } from "@/lib/format";
 import {
-  employees,
+  PERFORMANCE_RATINGS,
+  type PerformanceRatingTier,
+} from "@/lib/career-config";
+import {
+  getEmployee,
   getCareerLevel,
   getEmployeeCareer,
   calculatePromotionReadiness,
-  careerLevels,
-  formatCurrency,
-  performanceRatings,
-  PerformanceRatingTier,
-} from "@/lib/mock-data";
+  getCareerLevels,
+  getPerformanceRatings,
+} from "@/lib/supabase-data";
 
-function getRatingStatus(tier: PerformanceRatingTier): string {
+function getRatingStatus(tier: string): string {
   return `rating_${tier.toLowerCase()}`;
 }
 
@@ -68,13 +72,75 @@ function InfoTip({ id, expanded, onToggle, children }: {
   );
 }
 
-export default function EmployeeCareerPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+interface EmployeeData {
+  id: number;
+  name: string;
+  department: string;
+  role: string;
+  base_salary: number;
+  email: string;
+  phone: string;
+  join_date: string;
+  status: string;
+}
+
+interface CareerData {
+  employee_id: number;
+  level_code: string;
+  track: string;
+  level_start_date: string;
+  current_salary: number;
+  promotion_eligible_date: string | null;
+}
+
+interface LevelData {
+  code: string;
+  name: string;
+  name_vi: string;
+  track: string;
+  is_active: boolean;
+  salary_band_min: number;
+  salary_band_mid: number;
+  salary_band_max: number;
+  min_time_months: number;
+  required_kpi_percent: number;
+  description: string;
+  next_level: string | null;
+}
+
+interface ReadinessData {
+  timeServed: number;
+  timeRequired: number;
+  timeReady: boolean;
+  avgKPIScore: number;
+  kpiReady: boolean;
+  currentRating: string;
+  salaryPosition: number;
+  missingCriteria: string[];
+  overallReady: boolean;
+  nextLevel: LevelData | null;
+}
+
+interface RatingRecord {
+  employee_id: number;
+  period: string;
+  kpi_score: number;
+  tier: string;
+}
+
+export default function EmployeeCareerPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+
   const [expandedTips, setExpandedTips] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [employee, setEmployee] = useState<EmployeeData | null>(null);
+  const [career, setCareer] = useState<CareerData | null>(null);
+  const [level, setLevel] = useState<LevelData | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessData | null>(null);
+  const [activeLevels, setActiveLevels] = useState<LevelData[]>([]);
+  const [ratings, setRatings] = useState<RatingRecord[]>([]);
+
   const toggleTip = (tipId: string) => {
     setExpandedTips((prev) => {
       const next = new Set(prev);
@@ -84,11 +150,50 @@ export default function EmployeeCareerPage({
     });
   };
 
-  const employee = employees.find((e) => e.id === id);
-  const career = getEmployeeCareer(id);
-  const level = career ? getCareerLevel(career.levelCode) : null;
-  const readiness = calculatePromotionReadiness(id);
-  const activeLevels = careerLevels.filter((l) => l.isActive);
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const empId = Number(id);
+
+      const [emp, careerData, levels] = await Promise.all([
+        getEmployee(empId),
+        getEmployeeCareer(empId),
+        getCareerLevels(),
+      ]);
+
+      setEmployee(emp);
+      setCareer(careerData);
+      setActiveLevels(levels.filter((l: LevelData) => l.is_active));
+
+      if (careerData) {
+        const lvl = await getCareerLevel(careerData.level_code);
+        setLevel(lvl);
+
+        const [readinessData, ratingsData] = await Promise.all([
+          calculatePromotionReadiness(empId),
+          getPerformanceRatings({ employee_id: empId }),
+        ]);
+        setReadiness(readinessData);
+        setRatings(ratingsData);
+      }
+    } catch (err) {
+      console.error("Error loading career data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   if (!employee) {
     return (
@@ -109,7 +214,7 @@ export default function EmployeeCareerPage({
         </div>
         <p className="text-slate-700 font-medium text-lg">{employee.name}</p>
         <p className="text-slate-500 text-sm mt-1">
-          {employee.trangThai === "da_nghi"
+          {employee.status === "inactive"
             ? "Nhân viên đã nghỉ việc - không có dữ liệu lộ trình"
             : "Chưa có dữ liệu lộ trình nghề nghiệp"}
         </p>
@@ -120,17 +225,17 @@ export default function EmployeeCareerPage({
     );
   }
 
-  const chartData = career.performanceHistory.map((h) => ({
-    period: h.period,
-    kpiScore: h.kpiScore,
-    threshold: level.requiredKPIPercent,
+  const chartData = ratings.map((r) => ({
+    period: r.period,
+    kpiScore: r.kpi_score,
+    threshold: level.required_kpi_percent,
   }));
 
   return (
     <div>
       <PageHeader
         title={employee.name}
-        subtitle={`${level.code} - ${level.nameVi} | ${career.track === "IC" ? "Chuyên gia (IC)" : "Quản lý (Manager)"}`}
+        subtitle={`${level.code} - ${level.name_vi} | ${career.track === "IC" ? "Chuyên gia (IC)" : "Quản lý (Manager)"}`}
         breadcrumbs={[
           { label: "Nhân sự", href: "/nhan-su/danh-sach" },
           { label: "Lộ trình nghề nghiệp", href: "/nhan-su/career-framework" },
@@ -155,11 +260,11 @@ export default function EmployeeCareerPage({
           </div>
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-lg font-bold text-slate-800">{employee.name}</h2>
-            <p className="text-sm text-slate-500">{employee.maSo} - {employee.phongBan}</p>
+            <p className="text-sm text-slate-500">{employee.role} - {employee.department}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700">
-              {level.code} - {level.nameVi}
+              {level.code} - {level.name_vi}
             </span>
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
               career.track === "IC"
@@ -189,7 +294,7 @@ export default function EmployeeCareerPage({
         <StatCard
           icon={Award}
           label="Xếp loại hiệu suất"
-          value={readiness ? performanceRatings.find((r) => r.tier === readiness.currentRating)?.label || "" : "N/A"}
+          value={readiness ? PERFORMANCE_RATINGS.find((r) => r.tier === readiness.currentRating)?.label || "" : "N/A"}
           color={readiness?.currentRating === "Top" || readiness?.currentRating === "Strong" ? "green" : readiness?.currentRating === "Good" ? "blue" : "orange"}
         />
         <StatCard
@@ -209,12 +314,12 @@ export default function EmployeeCareerPage({
       {/* Promotion Readiness Panel */}
       {readiness && (
         <div className={`bg-white rounded-xl border-2 ${
-          !readiness.nextLevel || !readiness.nextLevel.isActive
+          !readiness.nextLevel || !readiness.nextLevel.is_active
             ? "border-blue-300"
             : readiness.overallReady ? "border-green-300" : "border-orange-300"
         } p-5 mb-6`}>
           <div className="flex items-center gap-3 mb-4">
-            {!readiness.nextLevel || !readiness.nextLevel.isActive ? (
+            {!readiness.nextLevel || !readiness.nextLevel.is_active ? (
               <Award size={24} className="text-blue-500" />
             ) : readiness.overallReady ? (
               <CheckCircle2 size={24} className="text-green-500" />
@@ -223,18 +328,18 @@ export default function EmployeeCareerPage({
             )}
             <div>
               <h3 className="font-bold text-slate-800 text-lg">
-                {!readiness.nextLevel || !readiness.nextLevel.isActive
+                {!readiness.nextLevel || !readiness.nextLevel.is_active
                   ? "Cấp bậc cao nhất đang áp dụng"
                   : readiness.overallReady
                   ? "Đủ điều kiện xét thăng tiến"
                   : "Chưa đủ điều kiện thăng tiến"}
               </h3>
-              {readiness.nextLevel && readiness.nextLevel.isActive && (
+              {readiness.nextLevel && readiness.nextLevel.is_active && (
                 <p className="text-sm text-slate-500">
-                  Cấp bậc tiếp theo: {readiness.nextLevel.code} - {readiness.nextLevel.nameVi}
+                  Cấp bậc tiếp theo: {readiness.nextLevel.code} - {readiness.nextLevel.name_vi}
                 </p>
               )}
-              {readiness.nextLevel && !readiness.nextLevel.isActive && (
+              {readiness.nextLevel && !readiness.nextLevel.is_active && (
                 <p className="text-sm text-slate-500">
                   Bạn đã đạt cấp bậc cao nhất trong hệ thống hiện tại. Lương vẫn có thể tăng trong khung.
                 </p>
@@ -243,7 +348,7 @@ export default function EmployeeCareerPage({
           </div>
 
           {/* Criteria checklist - only show if there's an active next level */}
-          {readiness.nextLevel && readiness.nextLevel.isActive && (
+          {readiness.nextLevel && readiness.nextLevel.is_active && (
           <div className="space-y-4">
             {/* Time at level */}
             <div className="flex items-start gap-3">
@@ -284,7 +389,7 @@ export default function EmployeeCareerPage({
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-slate-700">
-                    Điểm KPI trung bình (yêu cầu {">="} {level.requiredKPIPercent}%)
+                    Điểm KPI trung bình (yêu cầu {">="} {level.required_kpi_percent}%)
                   </span>
                   <span className="text-sm text-slate-500">
                     {readiness.avgKPIScore}%
@@ -356,9 +461,9 @@ export default function EmployeeCareerPage({
           {/* Current level band */}
           <div>
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-              <span>{formatCurrency(level.salaryBand.min)}</span>
-              <span className="font-medium text-slate-700">{level.code} - {level.nameVi}</span>
-              <span>{formatCurrency(level.salaryBand.max)}</span>
+              <span>{formatCurrency(level.salary_band_min)}</span>
+              <span className="font-medium text-slate-700">{level.code} - {level.name_vi}</span>
+              <span>{formatCurrency(level.salary_band_max)}</span>
             </div>
             <div className="relative h-6 bg-gradient-to-r from-blue-100 via-blue-200 to-blue-300 rounded-full overflow-visible">
               {/* Mid marker */}
@@ -378,7 +483,7 @@ export default function EmployeeCareerPage({
             <div className="flex items-center justify-between mt-1">
               <span className="text-[10px] text-slate-400">Min</span>
               <span className="text-xs font-medium text-blue-600">
-                Lương hiện tại: {formatCurrency(career.currentSalary)}
+                Lương hiện tại: {formatCurrency(career.current_salary)}
               </span>
               <span className="text-[10px] text-slate-400">Max</span>
             </div>
@@ -393,9 +498,9 @@ export default function EmployeeCareerPage({
           {readiness?.nextLevel && (
             <div className="opacity-50">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>{formatCurrency(readiness.nextLevel.salaryBand.min)}</span>
-                <span>{readiness.nextLevel.code} - {readiness.nextLevel.nameVi} (cấp tiếp theo)</span>
-                <span>{formatCurrency(readiness.nextLevel.salaryBand.max)}</span>
+                <span>{formatCurrency(readiness.nextLevel.salary_band_min)}</span>
+                <span>{readiness.nextLevel.code} - {readiness.nextLevel.name_vi} (cấp tiếp theo)</span>
+                <span>{formatCurrency(readiness.nextLevel.salary_band_max)}</span>
               </div>
               <div className="h-4 bg-gradient-to-r from-green-50 via-green-100 to-green-200 rounded-full" />
             </div>
@@ -419,10 +524,10 @@ export default function EmployeeCareerPage({
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }} />
                 <ReferenceLine
-                  y={level.requiredKPIPercent}
+                  y={level.required_kpi_percent}
                   stroke="#f97316"
                   strokeDasharray="5 5"
-                  label={{ value: `Yêu cầu: ${level.requiredKPIPercent}%`, position: "right", fontSize: 10, fill: "#f97316" }}
+                  label={{ value: `Yêu cầu: ${level.required_kpi_percent}%`, position: "right", fontSize: 10, fill: "#f97316" }}
                 />
                 <Line
                   type="monotone"
@@ -450,20 +555,20 @@ export default function EmployeeCareerPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {career.performanceHistory.map((h, i) => (
+                {ratings.map((r, i) => (
                   <tr key={i} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 text-sm text-slate-700 font-medium">{h.period}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700 font-medium">{r.period}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-sm font-bold ${
-                        h.kpiScore >= level.requiredKPIPercent
+                        r.kpi_score >= level.required_kpi_percent
                           ? "text-green-600"
                           : "text-orange-600"
                       }`}>
-                        {h.kpiScore}%
+                        {r.kpi_score}%
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <StatusBadge status={getRatingStatus(h.rating)} />
+                      <StatusBadge status={getRatingStatus(r.tier as PerformanceRatingTier)} />
                     </td>
                   </tr>
                 ))}
@@ -483,8 +588,8 @@ export default function EmployeeCareerPage({
         </InfoTip>
         <div className="flex items-center justify-between overflow-x-auto pb-2 mt-4">
           {activeLevels.map((l, i) => {
-            const isCurrent = l.code === career.levelCode;
-            const isPast = activeLevels.findIndex((al) => al.code === career.levelCode) > i;
+            const isCurrent = l.code === career.level_code;
+            const isPast = activeLevels.findIndex((al) => al.code === career.level_code) > i;
             const isFuture = !isCurrent && !isPast;
 
             return (
@@ -510,7 +615,7 @@ export default function EmployeeCareerPage({
                       isCurrent ? "text-blue-700" : isPast ? "text-green-600" : "text-slate-400"
                     }`}
                   >
-                    {l.nameVi}
+                    {l.name_vi}
                   </p>
                   {isCurrent && (
                     <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mt-1 font-medium">

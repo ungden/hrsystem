@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Target, Building2, User } from 'lucide-react';
 import { BusinessTarget, DepartmentGoal, IndividualPlan } from '@/lib/agent-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 import ProgressRing from './ProgressRing';
 
 interface TargetCascadeTreeProps {

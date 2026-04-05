@@ -2,63 +2,62 @@ import {
   AnnualTarget, QuarterlyMilestone, MonthlyPlan, WeeklySprint, DailyTask, TaskItem,
   EmployeeCascade,
 } from './cascade-types';
-import { employees, employeeCareers, departments } from './mock-data';
+import { getEmployees, getEmployeeCareers, getTasks, getMasterPlans } from '@/lib/supabase-data';
 
-function prand(seed: number, n: number): number {
-  return ((seed * 17 + n * 31 + seed * n * 7) % 1000) / 1000;
-}
+const dayNames = ['Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6'];
 
-const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
-
-// Department-specific daily task templates
+// Department-specific daily task templates (used when no real tasks exist for a day)
 const deptDailyTemplates: Record<string, { title: string; kpi: string; unit: string; dailyTarget: number }[]> = {
-  'Phòng Kinh doanh': [
-    { title: 'Gọi điện khách hàng tiềm năng', kpi: 'Số cuộc gọi', unit: 'cuộc', dailyTarget: 8 },
-    { title: 'Gửi báo giá/proposal', kpi: 'Số báo giá', unit: 'báo giá', dailyTarget: 2 },
-    { title: 'Họp/demo với khách hàng', kpi: 'Số buổi demo', unit: 'buổi', dailyTarget: 1 },
-    { title: 'Cập nhật CRM', kpi: 'Deals cập nhật', unit: 'deal', dailyTarget: 3 },
-    { title: 'Follow-up khách hàng cũ', kpi: 'Follow-up', unit: 'KH', dailyTarget: 5 },
+  'Sales': [
+    { title: 'Goi dien khach hang tiem nang', kpi: 'So cuoc goi', unit: 'cuoc', dailyTarget: 8 },
+    { title: 'Gui bao gia/proposal', kpi: 'So bao gia', unit: 'bao gia', dailyTarget: 2 },
+    { title: 'Hop/demo voi khach hang', kpi: 'So buoi demo', unit: 'buoi', dailyTarget: 1 },
+    { title: 'Cap nhat CRM', kpi: 'Deals cap nhat', unit: 'deal', dailyTarget: 3 },
+    { title: 'Follow-up khach hang cu', kpi: 'Follow-up', unit: 'KH', dailyTarget: 5 },
   ],
-  'Phòng CNTT': [
-    { title: 'Code & review pull requests', kpi: 'PRs hoàn thành', unit: 'PR', dailyTarget: 2 },
-    { title: 'Fix bugs & issues', kpi: 'Bugs fixed', unit: 'bug', dailyTarget: 3 },
-    { title: 'Viết unit tests', kpi: 'Test coverage', unit: 'test', dailyTarget: 5 },
-    { title: 'Deploy & monitoring', kpi: 'Deployments', unit: 'deploy', dailyTarget: 1 },
-    { title: 'Tech documentation', kpi: 'Pages viết', unit: 'trang', dailyTarget: 1 },
+  'Marketing': [
+    { title: 'Tao content social media', kpi: 'Bai dang', unit: 'bai', dailyTarget: 3 },
+    { title: 'Chay & toi uu quang cao', kpi: 'Campaigns', unit: 'chien dich', dailyTarget: 2 },
+    { title: 'Phan tich metrics/analytics', kpi: 'Reports', unit: 'bao cao', dailyTarget: 1 },
+    { title: 'Thiet ke creative assets', kpi: 'Designs', unit: 'design', dailyTarget: 2 },
+    { title: 'Quan ly leads/email marketing', kpi: 'Leads xu ly', unit: 'lead', dailyTarget: 15 },
   ],
-  'Phòng Kế toán': [
-    { title: 'Xử lý chứng từ kế toán', kpi: 'Chứng từ', unit: 'chứng từ', dailyTarget: 15 },
-    { title: 'Đối chiếu công nợ', kpi: 'Đối chiếu', unit: 'KH', dailyTarget: 3 },
-    { title: 'Nhập liệu sổ sách', kpi: 'Bút toán', unit: 'bút toán', dailyTarget: 20 },
-    { title: 'Kiểm tra hóa đơn', kpi: 'Hóa đơn', unit: 'HĐ', dailyTarget: 10 },
-    { title: 'Cập nhật báo cáo', kpi: 'Báo cáo', unit: 'BC', dailyTarget: 1 },
+  'Ke toan': [
+    { title: 'Xu ly chung tu ke toan', kpi: 'Chung tu', unit: 'chung tu', dailyTarget: 15 },
+    { title: 'Doi chieu cong no', kpi: 'Doi chieu', unit: 'KH', dailyTarget: 3 },
+    { title: 'Nhap lieu so sach', kpi: 'But toan', unit: 'but toan', dailyTarget: 20 },
+    { title: 'Kiem tra hoa don', kpi: 'Hoa don', unit: 'HD', dailyTarget: 10 },
+    { title: 'Cap nhat bao cao', kpi: 'Bao cao', unit: 'BC', dailyTarget: 1 },
   ],
-  'Phòng Nhân sự': [
-    { title: 'Sàng lọc CV ứng viên', kpi: 'CV reviewed', unit: 'CV', dailyTarget: 10 },
-    { title: 'Phỏng vấn ứng viên', kpi: 'Phỏng vấn', unit: 'buổi', dailyTarget: 1 },
-    { title: 'Xử lý đơn từ nhân viên', kpi: 'Đơn xử lý', unit: 'đơn', dailyTarget: 5 },
-    { title: 'Cập nhật hồ sơ nhân sự', kpi: 'Hồ sơ', unit: 'hồ sơ', dailyTarget: 3 },
-    { title: 'Tổ chức training/onboarding', kpi: 'Sessions', unit: 'buổi', dailyTarget: 1 },
+  'Van hanh': [
+    { title: 'Quan ly san xuat', kpi: 'Lo hang', unit: 'lo', dailyTarget: 5 },
+    { title: 'Kiem soat chat luong', kpi: 'Kiem tra', unit: 'lo', dailyTarget: 5 },
+    { title: 'Quan ly kho hang', kpi: 'Cap nhat', unit: 'SKU', dailyTarget: 10 },
+    { title: 'Dong goi don hang', kpi: 'Don hang', unit: 'don', dailyTarget: 20 },
+    { title: 'Bao tri thiet bi', kpi: 'Thiet bi', unit: 'thiet bi', dailyTarget: 2 },
   ],
-  'Phòng Hành chính': [
-    { title: 'Quản lý công văn đến/đi', kpi: 'Công văn', unit: 'CV', dailyTarget: 8 },
-    { title: 'Xử lý yêu cầu hành chính', kpi: 'Yêu cầu', unit: 'YC', dailyTarget: 5 },
-    { title: 'Kiểm tra cơ sở vật chất', kpi: 'Kiểm tra', unit: 'hạng mục', dailyTarget: 3 },
-    { title: 'Mua sắm văn phòng phẩm', kpi: 'Đơn hàng', unit: 'đơn', dailyTarget: 2 },
-    { title: 'Lưu trữ hồ sơ', kpi: 'Hồ sơ', unit: 'bộ', dailyTarget: 5 },
-  ],
-  'Phòng Marketing': [
-    { title: 'Tạo content social media', kpi: 'Bài đăng', unit: 'bài', dailyTarget: 3 },
-    { title: 'Chạy & tối ưu quảng cáo', kpi: 'Campaigns', unit: 'chiến dịch', dailyTarget: 2 },
-    { title: 'Phân tích metrics/analytics', kpi: 'Reports', unit: 'báo cáo', dailyTarget: 1 },
-    { title: 'Thiết kế creative assets', kpi: 'Designs', unit: 'design', dailyTarget: 2 },
-    { title: 'Quản lý leads/email marketing', kpi: 'Leads xử lý', unit: 'lead', dailyTarget: 15 },
+  'Ban Giam doc': [
+    { title: 'Review bao cao kinh doanh', kpi: 'Bao cao', unit: 'BC', dailyTarget: 3 },
+    { title: 'Hop chien luoc', kpi: 'Cuoc hop', unit: 'cuoc', dailyTarget: 2 },
+    { title: 'Phe duyet de xuat', kpi: 'De xuat', unit: 'de xuat', dailyTarget: 5 },
+    { title: 'Lien he doi tac/khach hang VIP', kpi: 'Lien he', unit: 'cuoc', dailyTarget: 3 },
+    { title: 'Giam sat KPI team', kpi: 'KPI check', unit: 'phong ban', dailyTarget: 3 },
   ],
 };
 
-function generateDailyTasks(dept: string, weekNum: number, monthNum: number, seed: number): DailyTask[] {
-  const templates = deptDailyTemplates[dept] || deptDailyTemplates['Phòng Hành chính'];
+function generateDailyTasks(
+  dept: string,
+  weekNum: number,
+  monthNum: number,
+  realTasks: { id: string; title: string; points: number; status: string }[],
+  employeeId: string
+): DailyTask[] {
+  const templates = deptDailyTemplates[dept] || deptDailyTemplates['Ban Giam doc'];
   const baseDate = new Date(2026, monthNum - 1, 1 + (weekNum - 1) * 7);
+  const today = new Date(2026, 3, 5); // April 5, 2026
+
+  // Distribute real tasks across the 5 days of the week
+  const tasksPerDay = Math.max(1, Math.ceil(realTasks.length / 5));
 
   return dayNames.map((dayName, dayIdx) => {
     const date = new Date(baseDate);
@@ -69,21 +68,40 @@ function generateDailyTasks(dept: string, weekNum: number, monthNum: number, see
     }
 
     const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-    const isPast = date < new Date(2026, 3, 5); // before April 5, 2026
+    const isPast = date < today;
+    const isToday = date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
 
-    const tasks: TaskItem[] = templates.map((t, tIdx) => {
-      const variance = prand(seed + dayIdx + tIdx, weekNum + monthNum);
-      const actual = isPast ? Math.round(t.dailyTarget * (0.6 + variance * 0.6)) : 0;
-      return {
-        id: `task-${seed}-${weekNum}-${dayIdx}-${tIdx}`,
-        title: t.title,
-        kpiMetric: t.kpi,
-        targetValue: t.dailyTarget,
-        actualValue: actual,
-        unit: t.unit,
-        completed: isPast && actual >= t.dailyTarget,
-      };
-    });
+    // Get real tasks for this day slice
+    const dayRealTasks = realTasks.slice(dayIdx * tasksPerDay, (dayIdx + 1) * tasksPerDay);
+
+    let tasks: TaskItem[];
+
+    if (dayRealTasks.length > 0) {
+      // Use real tasks
+      tasks = dayRealTasks.map((rt, tIdx) => ({
+        id: rt.id || `task-${employeeId}-${monthNum}-${weekNum}-${dayIdx}-${tIdx}`,
+        title: rt.title,
+        kpiMetric: 'Points',
+        targetValue: rt.points || 1,
+        actualValue: rt.status === 'done' ? (rt.points || 1) : (rt.status === 'in_progress' ? Math.round((rt.points || 1) * 0.5) : 0),
+        unit: 'diem',
+        completed: rt.status === 'done',
+      }));
+    } else {
+      // Fall back to templates for days with no real tasks
+      tasks = templates.map((t, tIdx) => {
+        const actual = isPast ? t.dailyTarget : 0;
+        return {
+          id: `task-${employeeId}-${monthNum}-${weekNum}-${dayIdx}-${tIdx}`,
+          title: t.title,
+          kpiMetric: t.kpi,
+          targetValue: t.dailyTarget,
+          actualValue: actual,
+          unit: t.unit,
+          completed: isPast,
+        };
+      });
+    }
 
     const totalTarget = tasks.reduce((s, t) => s + t.targetValue, 0);
     const totalActual = tasks.reduce((s, t) => s + t.actualValue, 0);
@@ -91,12 +109,12 @@ function generateDailyTasks(dept: string, weekNum: number, monthNum: number, see
     let status: DailyTask['status'] = 'upcoming';
     if (isPast) {
       status = totalActual >= totalTarget * 0.8 ? 'completed' : 'missed';
-    } else if (dateStr === '05/04/2026') {
+    } else if (isToday) {
       status = 'in_progress';
     }
 
     return {
-      id: `day-${seed}-${weekNum}-${dayIdx}`,
+      id: `day-${employeeId}-${monthNum}-${weekNum}-${dayIdx}`,
       date: dateStr,
       dayOfWeek: dayName,
       tasks,
@@ -107,21 +125,30 @@ function generateDailyTasks(dept: string, weekNum: number, monthNum: number, see
   });
 }
 
-function generateWeeks(dept: string, monthNum: number, monthlyTarget: number, seed: number): WeeklySprint[] {
+function generateWeeks(
+  dept: string,
+  monthNum: number,
+  monthlyTarget: number,
+  realTasks: { id: string; title: string; points: number; status: string }[],
+  employeeId: string
+): WeeklySprint[] {
   const weekTargetBase = monthlyTarget / 4;
+  // Distribute real tasks across 4 weeks
+  const tasksPerWeek = Math.ceil(realTasks.length / 4);
 
   return [1, 2, 3, 4].map(weekNum => {
-    const weekTarget = Math.round(weekTargetBase * (0.9 + prand(seed, weekNum) * 0.2));
-    const days = generateDailyTasks(dept, weekNum, monthNum, seed + weekNum * 100);
+    const weekTarget = Math.round(weekTargetBase);
+    const weekRealTasks = realTasks.slice((weekNum - 1) * tasksPerWeek, weekNum * tasksPerWeek);
+    const days = generateDailyTasks(dept, weekNum, monthNum, weekRealTasks, employeeId);
     const weekActual = days.reduce((s, d) => s + d.totalActual, 0);
 
     const startDay = 1 + (weekNum - 1) * 7;
     const endDay = Math.min(startDay + 4, 28);
 
     return {
-      id: `week-${seed}-${monthNum}-${weekNum}`,
+      id: `week-${employeeId}-${monthNum}-${weekNum}`,
       weekNum,
-      label: `Tuần ${weekNum}`,
+      label: `Tuan ${weekNum}`,
       startDate: `${String(startDay).padStart(2, '0')}/${String(monthNum).padStart(2, '0')}/2026`,
       endDate: `${String(endDay).padStart(2, '0')}/${String(monthNum).padStart(2, '0')}/2026`,
       targetValue: weekTarget,
@@ -131,53 +158,73 @@ function generateWeeks(dept: string, monthNum: number, monthlyTarget: number, se
   });
 }
 
-export function generateEmployeeCascade(employeeId: string): EmployeeCascade {
-  const emp = employees.find(e => e.id === employeeId);
+export async function generateEmployeeCascade(employeeId: string): Promise<EmployeeCascade> {
+  const [employees, employeeCareers, allTasks, masterPlans] = await Promise.all([
+    getEmployees(),
+    getEmployeeCareers(),
+    getTasks({ assignee_id: parseInt(employeeId) }),
+    getMasterPlans().catch(() => []),
+  ]);
+
+  const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);
   if (!emp) return { employeeId, employeeName: '', department: '', annualTargets: [] };
 
-  const career = employeeCareers.find(c => c.employeeId === employeeId);
-  const levelNum = parseInt((career?.levelCode || 'L3').slice(1));
-  const seed = parseInt(employeeId) * 100;
+  const career = employeeCareers.find((c: { employee_id: number }) => c.employee_id === emp.id);
 
-  // Employee's weighted share based on level
-  const deptEmps = employees.filter(e => e.phongBan === emp.phongBan && e.trangThai !== 'da_nghi');
-  const empWeights = deptEmps.map(e => {
-    const c = employeeCareers.find(ec => ec.employeeId === e.id);
-    return parseInt((c?.levelCode || 'L3').slice(1)) * 1.5;
+  // Annual target from master_plans for the department, or compute from total task points
+  const deptPlans = masterPlans.filter((p: { role: string; department: string }) =>
+    p.department === emp.department || p.role === emp.department
+  );
+  const totalTaskPoints = allTasks.reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
+  const doneTaskPoints = allTasks
+    .filter((t: { status: string }) => t.status === 'done')
+    .reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
+
+  // Use master plan target_value if available, else derive from tasks
+  const annualTargetValue = deptPlans.length > 0 && deptPlans[0].target_value
+    ? (deptPlans[0].target_value as number)
+    : Math.max(totalTaskPoints, 1000); // minimum 1000 points as target
+
+  // Group tasks by month_number
+  const tasksByMonth: Record<number, { id: string; title: string; points: number; status: string }[]> = {};
+  allTasks.forEach((t: { month_number: number; id: string; title: string; points: number; status: string }) => {
+    const mn = t.month_number || 1;
+    if (!tasksByMonth[mn]) tasksByMonth[mn] = [];
+    tasksByMonth[mn].push({ id: t.id, title: t.title, points: t.points || 0, status: t.status });
   });
-  const totalWeight = empWeights.reduce((s, w) => s + w, 0);
-  const myWeight = (levelNum * 1.5) / totalWeight;
-
-  // Annual revenue target for this employee (based on company total)
-  const totalSalary = employeeCareers.reduce((s, c) => s + c.currentSalary, 0);
-  const companyRevenue = totalSalary * 3.5 * 12; // annual
-  const deptWeights: Record<string, number> = {
-    'Phòng Kinh doanh': 0.45, 'Phòng Marketing': 0.20, 'Phòng CNTT': 0.18,
-    'Phòng Kế toán': 0.05, 'Phòng Nhân sự': 0.02, 'Phòng Hành chính': 0.02,
-  };
-  const deptShare = deptWeights[emp.phongBan] || 0.05;
-  const annualTarget = Math.round(companyRevenue * deptShare * myWeight);
 
   // Build cascade
-  const quarters: QuarterlyMilestone[] = ['Q1', 'Q2', 'Q3', 'Q4'].map((q, qi) => {
-    const qTarget = Math.round(annualTarget / 4 * (0.9 + prand(seed, qi) * 0.2));
+  const quarters: QuarterlyMilestone[] = (['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q, qi) => {
+    const qTarget = Math.round(annualTargetValue / 4);
     const monthNums = [qi * 3 + 1, qi * 3 + 2, qi * 3 + 3];
 
-    const months: MonthlyPlan[] = monthNums.map((mn, mi) => {
-      const mTarget = Math.round(qTarget / 3 * (0.95 + prand(seed + mn, mi) * 0.1));
+    const monthPlans: MonthlyPlan[] = monthNums.map((mn) => {
+      const mTarget = Math.round(qTarget / 3);
+      const monthTasks = tasksByMonth[mn] || [];
+
+      // Calculate actual from real task completion
+      const mActualPoints = monthTasks
+        .filter(t => t.status === 'done')
+        .reduce((s, t) => s + t.points, 0);
+      const mInProgressPoints = monthTasks
+        .filter(t => t.status === 'in_progress')
+        .reduce((s, t) => s + Math.round(t.points * 0.5), 0);
+
       const isPastMonth = mn < 4; // before April 2026
       const isCurrentMonth = mn === 4;
-      const mActual = isPastMonth ? Math.round(mTarget * (0.7 + prand(seed, mn) * 0.4)) : (isCurrentMonth ? Math.round(mTarget * 0.3) : 0);
+      const mActual = isPastMonth
+        ? mActualPoints + mInProgressPoints
+        : (isCurrentMonth ? mActualPoints + mInProgressPoints : 0);
 
       let status: MonthlyPlan['status'] = 'upcoming';
       if (isPastMonth) {
-        const ratio = mActual / mTarget;
+        const ratio = mTarget > 0 ? mActual / mTarget : 0;
         status = ratio >= 0.9 ? 'completed' : ratio >= 0.7 ? 'on_track' : 'behind';
       } else if (isCurrentMonth) {
         status = 'on_track';
       }
 
-      const weeks = generateWeeks(emp.phongBan, mn, mTarget, seed + mn);
+      const weeks = generateWeeks(emp.department, mn, mTarget, monthTasks, employeeId);
 
       return {
         id: `month-${employeeId}-${mn}`,
@@ -190,14 +237,14 @@ export function generateEmployeeCascade(employeeId: string): EmployeeCascade {
       };
     });
 
-    const qActual = months.reduce((s, m) => s + m.currentValue, 0);
+    const qActual = monthPlans.reduce((s, m) => s + m.currentValue, 0);
 
     return {
       id: `q-${employeeId}-${q}`,
       quarter: q,
       targetValue: qTarget,
       currentValue: qActual,
-      months,
+      months: monthPlans,
     };
   });
 
@@ -206,22 +253,25 @@ export function generateEmployeeCascade(employeeId: string): EmployeeCascade {
   return {
     employeeId,
     employeeName: emp.name,
-    department: emp.phongBan,
+    department: emp.department,
     annualTargets: [{
       id: `annual-${employeeId}`,
       year: 2026,
-      name: `Mục tiêu đóng góp ${emp.phongBan.replace('Phòng ', '')}`,
+      name: `Muc tieu dong gop ${emp.department}`,
       category: 'contribution',
-      targetValue: annualTarget,
+      targetValue: annualTargetValue,
       currentValue: annualActual,
-      unit: 'VND',
+      unit: 'diem',
       quarters,
     }],
   };
 }
 
-export function generateAllCascades(): EmployeeCascade[] {
-  return employees
-    .filter(e => e.trangThai !== 'da_nghi')
-    .map(e => generateEmployeeCascade(e.id));
+export async function generateAllCascades(): Promise<EmployeeCascade[]> {
+  const employees = await getEmployees();
+  return Promise.all(
+    employees
+      .filter((e: { status: string }) => e.status !== 'inactive')
+      .map((e: { id: number }) => generateEmployeeCascade(String(e.id)))
+  );
 }

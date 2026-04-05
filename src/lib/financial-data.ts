@@ -7,76 +7,77 @@ import {
   DepartmentDetail,
   BusinessMilestone,
 } from './financial-types';
-import { employees, employeeCareers, departments, formatCurrency } from './mock-data';
+import {
+  getEmployees,
+  getEmployeeCareers,
+  getMonthlyPnL,
+  getReceivables,
+  getPayables,
+  getPayrolls,
+  getInventory,
+  getFinanceSettings,
+  getChannelEconomics,
+  getTasks,
+  getPerformanceRatings,
+  getMasterPlans,
+} from '@/lib/supabase-data';
+import { formatCurrency } from './format';
 import { deptNameToSlug } from './department-utils';
-
-// Deterministic pseudo-random
-function prand(seed: number, n: number): number {
-  return ((seed * 17 + n * 31 + seed * n * 7) % 1000) / 1000;
-}
 
 // ============ INCOME STATEMENT GENERATOR ============
 
-const months = ['T4/2025', 'T5/2025', 'T6/2025', 'T7/2025', 'T8/2025', 'T9/2025', 'T10/2025', 'T11/2025', 'T12/2025', 'T1/2026', 'T2/2026', 'T3/2026'];
+export async function generateIncomeStatements(): Promise<IncomeStatementMonth[]> {
+  const pnlData = await getMonthlyPnL();
 
-// Revenue by channel (not department — only Sales/Marketing generate revenue)
-const revenueWeights: Record<string, number> = {
-  'Sales': 0.55,
-  'Marketing': 0.45,
-  'Vận hành': 0,
-  'Kế toán': 0,
-  'Ban Giám đốc': 0,
-};
+  if (!pnlData || pnlData.length === 0) {
+    return [];
+  }
 
-export function generateIncomeStatements(): IncomeStatementMonth[] {
-  const activeEmps = employees.filter(e => e.trangThai !== 'da_nghi');
-  const totalMonthlySalary = employeeCareers.reduce((s, c) => s + c.currentSalary, 0);
-  const baseMonthlyRevenue = Math.round(totalMonthlySalary * 3.5);
-
-  return months.map((month, i) => {
-    const seed = i + 100;
-    // Revenue grows slightly month over month with seasonal variation
-    const seasonalFactor = 1 + (Math.sin(i * 0.8) * 0.08);
-    const growthFactor = 1 + (i * 0.015); // 1.5% monthly growth
-    const monthRevenue = Math.round(baseMonthlyRevenue * seasonalFactor * growthFactor);
+  return pnlData.map((m: Record<string, number | string>) => {
+    const revenueKinhDoanh = (m.revenue_shopee || 0) as number + ((m.revenue_b2b || 0) as number);
+    const revenueMarketing = ((m.revenue_website || 0) as number) + ((m.revenue_fbig || 0) as number) + ((m.revenue_tiktok || 0) as number);
+    const totalRevenue = (m.total_revenue || 0) as number;
+    const remainder = Math.max(0, totalRevenue - revenueKinhDoanh - revenueMarketing);
 
     const doanhThu = {
-      kinhdoanh: Math.round(monthRevenue * (0.45 + prand(seed, 1) * 0.05)),
-      marketing: Math.round(monthRevenue * (0.20 + prand(seed, 2) * 0.03)),
-      cntt: Math.round(monthRevenue * (0.18 + prand(seed, 3) * 0.02)),
-      khac: Math.round(monthRevenue * (0.08 + prand(seed, 4) * 0.02)),
-      tongDoanhThu: 0,
+      kinhdoanh: revenueKinhDoanh,
+      marketing: revenueMarketing,
+      cntt: 0,
+      khac: remainder,
+      tongDoanhThu: totalRevenue,
     };
-    doanhThu.tongDoanhThu = doanhThu.kinhdoanh + doanhThu.marketing + doanhThu.cntt + doanhThu.khac;
 
-    // HR costs from real salary data + allowances
-    const nhanSuCost = totalMonthlySalary + (activeEmps.length * 1_400_000); // salary + allowances
-    const insuranceCost = Math.round(totalMonthlySalary * 0.08);
+    const expenseHR = (m.expense_hr || 0) as number;
+    const expenseRent = (m.expense_rent || 0) as number;
+    const expenseTools = (m.expense_tools || 0) as number;
+    const expenseAds = (m.expense_ads || 0) as number;
+    const expensePlatformFees = (m.expense_platform_fees || 0) as number;
+    const expenseShipping = (m.expense_shipping || 0) as number;
+    const expenseOther = (m.expense_other || 0) as number;
+    const totalExpenses = (m.total_expenses || 0) as number;
 
     const chiPhi = {
-      nhanSu: nhanSuCost,
-      vanPhong: Math.round(doanhThu.tongDoanhThu * (0.06 + prand(seed, 5) * 0.02)),
-      thietBi: Math.round(doanhThu.tongDoanhThu * 0.03),
-      marketingChi: Math.round(doanhThu.tongDoanhThu * (0.04 + prand(seed, 6) * 0.02)),
-      baoHiem: insuranceCost,
-      khac: Math.round(doanhThu.tongDoanhThu * (0.02 + prand(seed, 7) * 0.01)),
-      tongChiPhi: 0,
+      nhanSu: expenseHR,
+      vanPhong: expenseRent,
+      thietBi: expenseTools,
+      marketingChi: expenseAds + expensePlatformFees,
+      baoHiem: expenseShipping,
+      khac: expenseOther,
+      tongChiPhi: totalExpenses,
     };
-    chiPhi.tongChiPhi = chiPhi.nhanSu + chiPhi.vanPhong + chiPhi.thietBi + chiPhi.marketingChi + chiPhi.baoHiem + chiPhi.khac;
 
-    const ebitda = doanhThu.tongDoanhThu - chiPhi.tongChiPhi;
-    const khauHao = Math.round(doanhThu.tongDoanhThu * 0.02);
-    const loiNhuanTruocThue = ebitda - khauHao;
-    const thueDoanhNghiep = loiNhuanTruocThue > 0 ? Math.round(loiNhuanTruocThue * 0.20) : 0;
-    const loiNhuanSauThue = loiNhuanTruocThue - thueDoanhNghiep;
+    const ebitda = (m.ebitda || 0) as number;
+    const khauHao = 0;
+    const loiNhuanTruocThue = ebitda;
+    const thueDoanhNghiep = (m.tax_cit || 0) as number;
+    const loiNhuanSauThue = (m.net_profit || 0) as number;
 
-    // Budget (slightly higher targets)
-    const nganSachDoanhThu = Math.round(doanhThu.tongDoanhThu * (1.05 + prand(seed, 8) * 0.05));
-    const nganSachChiPhi = Math.round(chiPhi.tongChiPhi * 0.95);
+    const nganSachDoanhThu = Math.round(totalRevenue * 1.1);
+    const nganSachChiPhi = totalExpenses;
     const nganSachLoiNhuan = nganSachDoanhThu - nganSachChiPhi;
 
     return {
-      month,
+      month: `${m.month}/${m.year}`,
       doanhThu,
       chiPhi,
       ebitda,
@@ -93,48 +94,70 @@ export function generateIncomeStatements(): IncomeStatementMonth[] {
 
 // ============ BALANCE SHEET GENERATOR ============
 
-export function generateBalanceSheet(incomeStatements: IncomeStatementMonth[]): BalanceSheet {
-  const totalRevenue = incomeStatements.reduce((s, m) => s + m.doanhThu.tongDoanhThu, 0);
-  const totalProfit = incomeStatements.reduce((s, m) => s + m.loiNhuanSauThue, 0);
-  const lastMonth = incomeStatements[incomeStatements.length - 1];
+export async function generateBalanceSheet(incomeStatements?: IncomeStatementMonth[]): Promise<BalanceSheet> {
+  const [receivables, payables, payrolls, inventory, financeSettings, pnlData] = await Promise.all([
+    getReceivables(),
+    getPayables(),
+    getPayrolls(),
+    getInventory(),
+    getFinanceSettings().catch(() => null),
+    incomeStatements ? Promise.resolve(null) : getMonthlyPnL(),
+  ]);
 
-  // Current Assets
-  const tienMat = Math.round(totalRevenue * 0.08 + totalProfit * 0.3);
-  const phaiThu = Math.round(lastMonth.doanhThu.tongDoanhThu * 0.35); // ~35% of monthly revenue
-  const hangTonKho = Math.round(totalRevenue * 0.01);
-  const chiPhiTraTruoc = Math.round(lastMonth.chiPhi.vanPhong * 2);
+  // If no income statements provided, build month label from pnl
+  const statements = incomeStatements || [];
+  const lastMonth = statements.length > 0 ? statements[statements.length - 1].month : 'T4/2026';
+
+  // Cumulative net profit from income statements or PnL data
+  const cumulativeNetProfit = statements.length > 0
+    ? statements.reduce((s, m) => s + m.loiNhuanSauThue, 0)
+    : (pnlData || []).reduce((s: number, m: { net_profit: number }) => s + (m.net_profit || 0), 0);
+
+  // Assets
+  const phaiThu = receivables.reduce((s: number, r: { amount: number }) => s + (r.amount || 0), 0);
+  const hangTonKho = inventory.reduce((s: number, item: { current_stock: number; unit_cost?: number }) => {
+    return s + (item.current_stock || 0) * (item.unit_cost || 0);
+  }, 0);
+
+  const vonDieuLe = (financeSettings?.charter_capital || 5_000_000_000) as number;
+  const loiNhuanGiuLai = cumulativeNetProfit;
+
+  // Derive cash from equity + liabilities structure
+  const tienMat = Math.max(0, Math.round(cumulativeNetProfit * 0.4 + vonDieuLe * 0.1));
+  const chiPhiTraTruoc = Math.round(tienMat * 0.05);
   const tongNganHan = tienMat + phaiThu + hangTonKho + chiPhiTraTruoc;
 
-  // Non-current Assets
-  const taiSanCoDinh = Math.round(totalRevenue * 0.15);
-  const khauHaoLuyKe = -Math.round(taiSanCoDinh * 0.3);
-  const taiSanVoHinh = Math.round(totalRevenue * 0.03);
+  // Non-current assets (simplified -- Teeworld is small)
+  const taiSanCoDinh = Math.round(vonDieuLe * 0.3);
+  const khauHaoLuyKe = -Math.round(taiSanCoDinh * 0.2);
+  const taiSanVoHinh = 0;
   const tongDaiHan = taiSanCoDinh + khauHaoLuyKe + taiSanVoHinh;
 
   const tongTaiSan = tongNganHan + tongDaiHan;
 
   // Liabilities
-  const phaiTraNganHan = Math.round(lastMonth.chiPhi.tongChiPhi * 0.25);
-  const luongPhaiTra = Math.round(lastMonth.chiPhi.nhanSu * 0.5);
-  const thuePhaiNop = Math.round(lastMonth.thueDoanhNghiep * 2);
-  const vayNganHan = Math.round(totalRevenue * 0.02);
-  const vayDaiHan = Math.round(totalRevenue * 0.08);
+  const phaiTraNganHan = payables.reduce((s: number, p: { amount: number }) => s + (p.amount || 0), 0);
+  const luongPhaiTra = payrolls
+    .filter((p: { status: string }) => p.status !== 'paid')
+    .reduce((s: number, p: { net_salary: number }) => s + (p.net_salary || 0), 0);
+  const thuePhaiNop = statements.length > 0 ? statements[statements.length - 1].thueDoanhNghiep : 0;
+  const vayNganHan = 0;
+  const vayDaiHan = 0;
   const tongNoPhaiTra = phaiTraNganHan + luongPhaiTra + thuePhaiNop + vayNganHan + vayDaiHan;
 
-  // Equity = Assets - Liabilities (guarantees balance)
-  const vonDieuLe = 5_000_000_000; // 5 billion VND charter capital
-  const loiNhuanGiuLai = tongTaiSan - tongNoPhaiTra - vonDieuLe;
-  const tongVon = vonDieuLe + loiNhuanGiuLai;
+  // Equity = Assets - Liabilities (force balance)
+  const tongVon = tongTaiSan - tongNoPhaiTra;
+  const adjustedLoiNhuanGiuLai = tongVon - vonDieuLe;
   const tongNguonVon = tongNoPhaiTra + tongVon;
 
   return {
-    month: lastMonth.month,
+    month: lastMonth,
     data: {
       taiSanNganHan: { tienMat, phaiThu, hangTonKho, chiPhiTraTruoc, tongNganHan },
       taiSanDaiHan: { taiSanCoDinh, khauHaoLuyKe, taiSanVoHinh, tongDaiHan },
       tongTaiSan,
       noPhaiTra: { phaiTraNganHan, luongPhaiTra, thuePhaiNop, vayNganHan, vayDaiHan, tongNoPhaiTra },
-      vonChuSoHuu: { vonDieuLe, loiNhuanGiuLai, tongVon },
+      vonChuSoHuu: { vonDieuLe, loiNhuanGiuLai: adjustedLoiNhuanGiuLai, tongVon },
       tongNguonVon,
     },
   };
@@ -142,27 +165,30 @@ export function generateBalanceSheet(incomeStatements: IncomeStatementMonth[]): 
 
 // ============ CASH FLOW GENERATOR ============
 
-export function generateCashFlows(incomeStatements: IncomeStatementMonth[]): CashFlowMonth[] {
+export async function generateCashFlows(incomeStatements?: IncomeStatementMonth[]): Promise<CashFlowMonth[]> {
+  const statements = incomeStatements || (await generateIncomeStatements());
+  const financeSettings = await getFinanceSettings().catch(() => null);
+  const collectionRate = (financeSettings?.collection_rate || 0.9) as number;
+
   let soDu = 800_000_000; // Starting cash: 800M VND
 
-  return incomeStatements.map((pnl, i) => {
-    const seed = i + 200;
+  return statements.map((pnl, i) => {
     const soDuDauKy = soDu;
 
     // Operating activities
-    const thuTuDoanhThu = Math.round(pnl.doanhThu.tongDoanhThu * (0.85 + prand(seed, 1) * 0.10)); // 85-95% collected
+    const thuTuDoanhThu = Math.round(pnl.doanhThu.tongDoanhThu * collectionRate);
     const chiLuong = -pnl.chiPhi.nhanSu;
-    const chiHoatDong = -(pnl.chiPhi.vanPhong + pnl.chiPhi.thietBi + pnl.chiPhi.marketingChi + pnl.chiPhi.khac);
+    const chiHoatDong = -(pnl.chiPhi.tongChiPhi - pnl.chiPhi.nhanSu);
     const chiThue = -pnl.thueDoanhNghiep;
     const dongTienKinhDoanh = thuTuDoanhThu + chiLuong + chiHoatDong + chiThue;
 
-    // Investing activities
-    const muaThietBi = i % 3 === 0 ? -Math.round(pnl.doanhThu.tongDoanhThu * 0.05) : 0;
+    // Investing activities (small equipment purchases every 3 months)
+    const muaThietBi = i % 3 === 0 ? -Math.round(pnl.chiPhi.thietBi * 2) : 0;
     const dongTienDauTu = muaThietBi;
 
-    // Financing activities
-    const vayMoi = i === 0 ? 200_000_000 : 0;
-    const traNo = -Math.round(15_000_000 + prand(seed, 3) * 5_000_000);
+    // Financing activities (no major financing for Teeworld)
+    const vayMoi = 0;
+    const traNo = 0;
     const dongTienTaiChinh = vayMoi + traNo;
 
     const dongTienRong = dongTienKinhDoanh + dongTienDauTu + dongTienTaiChinh;
@@ -207,39 +233,60 @@ export function calculateFinancialHealth(
 
 // ============ DEPARTMENT DETAIL GENERATOR ============
 
-export function generateDepartmentDetails(
+export async function generateDepartmentDetails(
   costProjections: { department: string; headcount: number; totalCost: number; totalBaseSalary: number; projectedBonusPool: number }[],
   individualPlans: { employeeId: string; status: string; departmentGoalId: string; targetValue: number; currentValue: number }[],
   departmentGoals: { id: string; department: string; name: string; targetValue: number; currentValue: number; unit: string }[]
-): DepartmentDetail[] {
-  const activeEmps = employees.filter(e => e.trangThai !== 'da_nghi');
+): Promise<DepartmentDetail[]> {
+  const [employees, employeeCareers, tasks, performanceRatings, channelEconomics] = await Promise.all([
+    getEmployees(),
+    getEmployeeCareers(),
+    getTasks(),
+    getPerformanceRatings(),
+    getChannelEconomics(),
+  ]);
 
-  return departments.map(dept => {
-    const deptEmps = activeEmps.filter(e => e.phongBan === dept);
-    const head = deptEmps.find(e => e.chucVu === 'Trưởng phòng');
+  const departments = [...new Set(employees.map((e: { department: string }) => e.department))];
+  const activeEmps = employees.filter((e: { status: string }) => e.status !== 'inactive');
+
+  // Channel revenue lookup for department contribution
+  const totalChannelRevenue = channelEconomics.reduce((s: number, ch: { monthly_revenue: number }) => s + (ch.monthly_revenue || 0), 0);
+
+  // Revenue weights based on real channel data (Sales = Shopee+B2B, Marketing = Website+FB+TikTok)
+  const salesRevenue = channelEconomics
+    .filter((ch: { channel_name: string }) => ['Shopee', 'B2B'].some(k => (ch.channel_name || '').includes(k)))
+    .reduce((s: number, ch: { monthly_revenue: number }) => s + (ch.monthly_revenue || 0), 0);
+  const marketingRevenue = channelEconomics
+    .filter((ch: { channel_name: string }) => ['Website', 'Facebook', 'TikTok'].some(k => (ch.channel_name || '').includes(k)))
+    .reduce((s: number, ch: { monthly_revenue: number }) => s + (ch.monthly_revenue || 0), 0);
+
+  const revenueByDept: Record<string, number> = {
+    'Sales': salesRevenue,
+    'Marketing': marketingRevenue,
+    'Van hanh': 0,
+    'Ke toan': 0,
+    'Ban Giam doc': 0,
+  };
+
+  return departments.map((dept: string) => {
+    const deptEmps = activeEmps.filter((e: { department: string }) => e.department === dept);
+    const head = deptEmps.find((e: { role: string }) => e.role.includes('Truong phong') || e.role.includes('CMO') || e.role.includes('CEO') || e.role.includes('Founder'));
     const costProj = costProjections.find(c => c.department === dept);
     const deptGoals = departmentGoals.filter(g => g.department === dept);
-    const deptPlans = individualPlans.filter(p => {
-      const emp = activeEmps.find(e => e.id === p.employeeId);
-      return emp?.phongBan === dept;
-    });
 
-    const completedPlans = deptPlans.filter(p => p.status === 'completed').length;
-    const taskCompletion = deptPlans.length > 0 ? Math.round((completedPlans / deptPlans.length) * 100) : 0;
+    // Real task completion from Supabase tasks
+    const deptTasks = tasks.filter((t: { department: string }) => t.department === dept);
+    const doneTasks = deptTasks.filter((t: { status: string }) => t.status === 'done').length;
+    const taskCompletion = deptTasks.length > 0 ? Math.round((doneTasks / deptTasks.length) * 100) : 0;
 
-    // Avg KPI from employee careers
-    const deptCareers = employeeCareers.filter(c => deptEmps.some(e => e.id === c.employeeId));
-    const avgKPI = deptCareers.length > 0
-      ? Math.round(deptCareers.reduce((s, c) => {
-          const last = c.performanceHistory.slice(-1)[0];
-          return s + (last?.kpiScore || 60);
-        }, 0) / deptCareers.length)
-      : 60;
+    // Real avg KPI from performance_ratings
+    const deptEmpIds = deptEmps.map((e: { id: number }) => e.id);
+    const deptRatings = performanceRatings.filter((r: { employee_id: number }) => deptEmpIds.includes(r.employee_id));
+    const avgKPI = deptRatings.length > 0
+      ? Math.round(deptRatings.reduce((s: number, r: { kpi_score: number }) => s + (r.kpi_score || 0), 0) / deptRatings.length)
+      : 70;
 
-    const totalMonthlySalary = employeeCareers.reduce((s, c) => s + c.currentSalary, 0);
-    const baseRevenue = Math.round(totalMonthlySalary * 3.5);
-    const revWeight = revenueWeights[dept] || 0.05;
-    const revenueContribution = Math.round(baseRevenue * revWeight);
+    const revenueContribution = revenueByDept[dept] || 0;
     const deptCost = costProj?.totalCost || 0;
     const contributionMargin = revenueContribution > 0
       ? Math.round(((revenueContribution - deptCost) / revenueContribution) * 100)
@@ -256,7 +303,7 @@ export function generateDepartmentDetails(
       department: dept,
       slug: deptNameToSlug[dept] || '',
       headName: head?.name || 'N/A',
-      headId: head?.id || '',
+      headId: head ? String(head.id) : '',
       headcount: deptEmps.length,
       avgKPI,
       taskCompletion,
@@ -270,26 +317,37 @@ export function generateDepartmentDetails(
 
 // ============ BUSINESS MILESTONES ============
 
-export function generateMilestones(): BusinessMilestone[] {
-  return [
-    { id: 'ms-1', date: '01/04/2025', title: 'Khởi động năm tài chính', description: 'Bắt đầu năm tài chính mới, thiết lập mục tiêu và ngân sách', type: 'milestone', agentRole: 'ceo' },
-    { id: 'ms-2', date: '15/05/2025', title: 'Đạt 100 khách hàng', description: 'Phòng Kinh doanh đạt mốc 100 khách hàng hoạt động', type: 'achievement', agentRole: 'dept_manager' },
-    { id: 'ms-3', date: '01/07/2025', title: 'Review giữa năm', description: 'Đánh giá hiệu suất nửa đầu năm, điều chỉnh chiến lược Q3-Q4', type: 'milestone', agentRole: 'hr_director' },
-    { id: 'ms-4', date: '20/08/2025', title: 'Ra mắt sản phẩm mới', description: 'Phòng CNTT hoàn thành và triển khai tính năng mới', type: 'achievement', agentRole: 'dept_manager' },
-    { id: 'ms-5', date: '01/10/2025', title: 'Đánh giá KPI Q3', description: 'CEO và HR Director review KPI toàn bộ nhân sự Q3/2025', type: 'milestone', agentRole: 'performance_coach' },
-    { id: 'ms-6', date: '15/11/2025', title: 'Cảnh báo chi phí vượt ngân sách', description: 'CFO phát hiện chi phí marketing vượt 12% so với kế hoạch', type: 'alert', agentRole: 'finance' },
-    { id: 'ms-7', date: '01/01/2026', title: 'Bắt đầu năm mới 2026', description: 'Cập nhật mục tiêu kinh doanh và kế hoạch tuyển dụng', type: 'milestone', agentRole: 'ceo' },
-    { id: 'ms-8', date: '15/02/2026', title: 'Tuyển dụng 2 nhân sự CNTT', description: 'Hoàn thành tuyển dụng bổ sung nhân sự cho dự án mới', type: 'achievement', agentRole: 'hr_director' },
-    { id: 'ms-9', date: '01/04/2026', title: 'Kế hoạch Q2/2026', description: 'AI Agents thiết lập mục tiêu và phân bổ nhiệm vụ Q2', type: 'plan', agentRole: 'ceo' },
-    { id: 'ms-10', date: '30/06/2026', title: 'Mục tiêu doanh thu Q2', description: 'Deadline hoàn thành mục tiêu doanh thu quý 2', type: 'plan', agentRole: 'ceo' },
-  ];
+export async function generateMilestones(): Promise<BusinessMilestone[]> {
+  const masterPlans = await getMasterPlans().catch(() => []);
+
+  if (masterPlans && masterPlans.length > 0) {
+    return masterPlans.map((plan: Record<string, string | number>, idx: number) => {
+      const planType = (plan.plan_type || 'milestone') as string;
+      let type: BusinessMilestone['type'] = 'milestone';
+      if (planType === 'achievement' || planType === 'alert' || planType === 'plan') {
+        type = planType as BusinessMilestone['type'];
+      }
+
+      return {
+        id: String(plan.id || `ms-${idx + 1}`),
+        date: (plan.target_date || plan.created_at || '') as string,
+        title: (plan.title || plan.name || '') as string,
+        description: (plan.description || '') as string,
+        type,
+        agentRole: (plan.role || 'ceo') as string,
+      };
+    });
+  }
+
+  // Fallback: return empty array if no master plans
+  return [];
 }
 
 // ============ AGGREGATE GENERATOR ============
 
-export function generateAllFinancials(): FinancialStatements {
-  const incomeStatements = generateIncomeStatements();
-  const balanceSheet = generateBalanceSheet(incomeStatements);
-  const cashFlows = generateCashFlows(incomeStatements);
+export async function generateAllFinancials(): Promise<FinancialStatements> {
+  const incomeStatements = await generateIncomeStatements();
+  const balanceSheet = await generateBalanceSheet(incomeStatements);
+  const cashFlows = await generateCashFlows(incomeStatements);
   return { incomeStatements, balanceSheet, cashFlows };
 }

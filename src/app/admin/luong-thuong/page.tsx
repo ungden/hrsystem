@@ -1,31 +1,31 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { DollarSign, Gift, Users, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import SalaryProjectionTable from '@/components/agents/SalaryProjectionTable';
 import { runFullCoordination } from '@/lib/agents/coordinator';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 export default function SalaryProjectionPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { setMounted(true); runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Lương & Thưởng" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
   const projections = state.salaryProjections;
 
-  const totalSalary = projections.reduce((s, p) => s + p.projectedTotal, 0);
-  const totalBonus = projections.reduce((s, p) => s + p.projectedBonus, 0);
+  const totalSalary = projections.reduce((s: number, p: any) => s + p.projectedTotal, 0);
+  const totalBonus = projections.reduce((s: number, p: any) => s + p.projectedBonus, 0);
   const avgPerPerson = projections.length > 0 ? Math.round(totalSalary / projections.length) : 0;
-  const maxSalary = Math.max(...projections.map(p => p.projectedTotal));
+  const maxSalary = Math.max(...projections.map((p: any) => p.projectedTotal));
 
   // Top 10 by total compensation
   const top10 = [...projections]
-    .sort((a, b) => b.projectedTotal - a.projectedTotal)
+    .sort((a: any, b: any) => b.projectedTotal - a.projectedTotal)
     .slice(0, 10)
-    .map(p => ({
+    .map((p: any) => ({
       name: p.employeeName.split(' ').slice(-2).join(' '),
       'Lương CB': Math.round(p.baseSalary / 1_000_000),
       'Thưởng': Math.round(p.projectedBonus / 1_000_000),

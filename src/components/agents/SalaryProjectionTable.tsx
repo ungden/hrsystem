@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { SalaryProjection } from '@/lib/agent-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 interface SalaryProjectionTableProps {
   projections: SalaryProjection[];

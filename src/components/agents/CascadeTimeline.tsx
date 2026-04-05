@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Calendar, Target, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { EmployeeCascade, MonthlyPlan, WeeklySprint, DailyTask } from '@/lib/cascade-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 import ProgressRing from './ProgressRing';
 
 interface CascadeTimelineProps {

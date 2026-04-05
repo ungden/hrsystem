@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import CashFlowChart from '@/components/agents/CashFlowChart';
 import { runFullCoordination } from '@/lib/agents/coordinator';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 import { Banknote, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 
 export default function CashFlowDetailPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { setMounted(true); runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Lưu chuyển Tiền tệ" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
   const cashFlows = state.financials.cashFlows;
 
   const lastCF = cashFlows[cashFlows.length - 1];
-  const totalOperating = cashFlows.reduce((s, cf) => s + cf.hoatDongKinhDoanh.dongTienKinhDoanh, 0);
-  const totalInvesting = cashFlows.reduce((s, cf) => s + cf.hoatDongDauTu.dongTienDauTu, 0);
-  const totalFinancing = cashFlows.reduce((s, cf) => s + cf.hoatDongTaiChinh.dongTienTaiChinh, 0);
+  const totalOperating = cashFlows.reduce((s: number, cf: any) => s + cf.hoatDongKinhDoanh.dongTienKinhDoanh, 0);
+  const totalInvesting = cashFlows.reduce((s: number, cf: any) => s + cf.hoatDongDauTu.dongTienDauTu, 0);
+  const totalFinancing = cashFlows.reduce((s: number, cf: any) => s + cf.hoatDongTaiChinh.dongTienTaiChinh, 0);
 
   return (
     <div className="p-6">
@@ -59,7 +59,7 @@ export default function CashFlowDetailPage() {
             <thead>
               <tr className="border-b-2 border-slate-200">
                 <th className="pb-2 text-left text-[10px] text-slate-500 uppercase pl-2 min-w-[180px]">Khoản mục</th>
-                {cashFlows.slice(-6).map(cf => (
+                {cashFlows.slice(-6).map((cf: any) => (
                   <th key={cf.month} className="pb-2 px-2 text-right text-[10px] text-slate-500 uppercase min-w-[90px]">{cf.month}</th>
                 ))}
               </tr>
@@ -67,25 +67,25 @@ export default function CashFlowDetailPage() {
             <tbody className="text-[12px]">
               <tr className="font-semibold bg-green-50/50">
                 <td className="py-1.5 pl-2 text-slate-800">I. Hoạt động kinh doanh</td>
-                {cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongKinhDoanh.dongTienKinhDoanh)}</td>)}
+                {cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongKinhDoanh.dongTienKinhDoanh)}</td>)}
               </tr>
-              <tr><td className="py-1 pl-6 text-slate-500">Thu từ doanh thu</td>{cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1 px-2 text-right text-slate-600">{formatCurrency(cf.hoatDongKinhDoanh.thuTuDoanhThu)}</td>)}</tr>
-              <tr><td className="py-1 pl-6 text-slate-500">Chi lương</td>{cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1 px-2 text-right text-red-500">{formatCurrency(cf.hoatDongKinhDoanh.chiLuong)}</td>)}</tr>
-              <tr><td className="py-1 pl-6 text-slate-500">Chi hoạt động</td>{cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1 px-2 text-right text-red-500">{formatCurrency(cf.hoatDongKinhDoanh.chiHoatDong)}</td>)}</tr>
+              <tr><td className="py-1 pl-6 text-slate-500">Thu từ doanh thu</td>{cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1 px-2 text-right text-slate-600">{formatCurrency(cf.hoatDongKinhDoanh.thuTuDoanhThu)}</td>)}</tr>
+              <tr><td className="py-1 pl-6 text-slate-500">Chi lương</td>{cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1 px-2 text-right text-red-500">{formatCurrency(cf.hoatDongKinhDoanh.chiLuong)}</td>)}</tr>
+              <tr><td className="py-1 pl-6 text-slate-500">Chi hoạt động</td>{cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1 px-2 text-right text-red-500">{formatCurrency(cf.hoatDongKinhDoanh.chiHoatDong)}</td>)}</tr>
 
               <tr className="font-semibold bg-amber-50/50 border-t border-slate-100">
                 <td className="py-1.5 pl-2 text-slate-800">II. Hoạt động đầu tư</td>
-                {cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongDauTu.dongTienDauTu)}</td>)}
+                {cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongDauTu.dongTienDauTu)}</td>)}
               </tr>
 
               <tr className="font-semibold bg-purple-50/50 border-t border-slate-100">
                 <td className="py-1.5 pl-2 text-slate-800">III. Hoạt động tài chính</td>
-                {cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongTaiChinh.dongTienTaiChinh)}</td>)}
+                {cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-1.5 px-2 text-right text-slate-800">{formatCurrency(cf.hoatDongTaiChinh.dongTienTaiChinh)}</td>)}
               </tr>
 
               <tr className="font-bold border-t-2 border-slate-300 bg-blue-50/50">
                 <td className="py-2 pl-2 text-blue-800">Số dư cuối kỳ</td>
-                {cashFlows.slice(-6).map(cf => <td key={cf.month} className="py-2 px-2 text-right text-blue-800 font-bold">{formatCurrency(cf.soDuCuoiKy)}</td>)}
+                {cashFlows.slice(-6).map((cf: any) => <td key={cf.month} className="py-2 px-2 text-right text-blue-800 font-bold">{formatCurrency(cf.soDuCuoiKy)}</td>)}
               </tr>
             </tbody>
           </table>

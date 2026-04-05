@@ -1,7 +1,7 @@
 "use client";
 
 import { IncomeStatementMonth } from '@/lib/financial-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 interface IncomeStatementTableProps {
   statements: IncomeStatementMonth[];

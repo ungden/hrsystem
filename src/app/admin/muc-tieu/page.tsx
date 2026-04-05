@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Target, Building2, User, CheckCircle2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
@@ -8,9 +8,11 @@ import TargetCascadeTree from '@/components/agents/TargetCascadeTree';
 import { runFullCoordination } from '@/lib/agents/coordinator';
 
 export default function TargetCascadePage() {
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Mục tiêu kinh doanh" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
 
-  const completedPlans = state.individualPlans.filter(p => p.status === 'completed').length;
+  const completedPlans = state.individualPlans.filter((p: any) => p.status === 'completed').length;
   const totalPlans = state.individualPlans.length;
 
   return (

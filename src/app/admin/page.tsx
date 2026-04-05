@@ -32,13 +32,14 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const agentState = typeof window !== 'undefined' ? runFullCoordination(2026, 'Q2') : null;
+  const [agentState, setAgentState] = useState<any>(null);
 
   useEffect(() => {
     getDashboardData()
       .then(d => setData(d as DashData))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+    runFullCoordination(2026, 'Q2').then(s => setAgentState(s)).catch(() => {});
   }, []);
 
   if (loading) {
@@ -217,7 +218,7 @@ export default function AdminDashboardPage() {
               <Link href="/admin/nhat-ky" className="text-xs text-blue-600 flex items-center gap-1">Tất cả <ArrowRight size={12} /></Link>
             </div>
             <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-              {agentState.messages.slice(0, 4).map(msg => <AgentMessageCard key={msg.id} message={msg} />)}
+              {agentState.messages.slice(0, 4).map((msg: any) => <AgentMessageCard key={msg.id} message={msg} />)}
             </div>
           </div>
         </>

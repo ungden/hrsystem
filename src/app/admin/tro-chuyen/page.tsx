@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import AgentChatPanel from '@/components/agents/AgentChatPanel';
 import AgentAvatar from '@/components/agents/AgentAvatar';
@@ -9,8 +9,15 @@ import { agentProfiles, allAgentRoles } from '@/lib/agents/agent-profiles';
 import { runFullCoordination } from '@/lib/agents/coordinator';
 
 export default function ChatPage() {
-  const initialState = useMemo(() => runFullCoordination(2026, 'Q2'), []);
-  const [state, setState] = useState<AgentCoordinationState>(initialState);
+  const [state, setState] = useState<AgentCoordinationState | null>(null);
+
+  useEffect(() => {
+    runFullCoordination(2026, 'Q2').then(s => setState(s));
+  }, []);
+
+  if (!state) {
+    return <div className="p-6"><PageHeader title="Trò chuyện với AI Agents" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
+  }
 
   return (
     <div className="p-6">

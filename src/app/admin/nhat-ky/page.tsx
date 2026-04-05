@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/PageHeader';
 import AgentMessageCard from '@/components/agents/AgentMessageCard';
 import { AgentRole, AgentMessage } from '@/lib/agent-types';
@@ -8,11 +8,13 @@ import { allAgentRoles } from '@/lib/agents/agent-profiles';
 import { runFullCoordination } from '@/lib/agents/coordinator';
 
 export default function ActivityLogPage() {
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
   const [agentFilter, setAgentFilter] = useState<AgentRole | ''>('');
   const [typeFilter, setTypeFilter] = useState<AgentMessage['type'] | ''>('');
 
   const filtered = useMemo(() => {
+    if (!state) return [];
     let msgs = [...state.messages];
     if (agentFilter) {
       msgs = msgs.filter(m => m.agentRole === agentFilter);
@@ -21,7 +23,9 @@ export default function ActivityLogPage() {
       msgs = msgs.filter(m => m.type === typeFilter);
     }
     return msgs;
-  }, [state.messages, agentFilter, typeFilter]);
+  }, [state?.messages, agentFilter, typeFilter]);
+
+  if (!state) return <div className="p-6"><PageHeader title="Nhật ký AI Agents" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
 
   const agentLabels: Record<AgentRole, string> = {
     ceo: 'CEO',

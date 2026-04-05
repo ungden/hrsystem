@@ -11,14 +11,17 @@ import {
   User,
   LogOut,
   Shield,
+  ClipboardCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 const menuItems = [
   { label: "Dashboard", href: "/employee", icon: LayoutDashboard },
   { label: "Công việc của tôi", href: "/employee/cong-viec", icon: ListChecks },
+  { label: "Báo cáo hàng ngày", href: "/employee/bao-cao", icon: ClipboardCheck },
   { label: "Chấm công", href: "/employee/cham-cong", icon: CalendarCheck },
   { label: "Bảng lương", href: "/employee/luong", icon: DollarSign },
+  { label: "Nghỉ phép", href: "/employee/nghi-phep", icon: CalendarCheck },
   { label: "KPI & Mục tiêu", href: "/employee/kpi", icon: Target },
   { label: "Hồ sơ cá nhân", href: "/employee/ho-so", icon: User },
 ];

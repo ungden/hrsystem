@@ -3,23 +3,25 @@
 import { useState, useEffect } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis, ReferenceLine } from 'recharts';
 import { SalaryProjection } from '@/lib/agent-types';
-import { employeeCareers } from '@/lib/mock-data';
 
 interface EmployeeScatterProps {
   projections: SalaryProjection[];
+  careers: { employee_id: number; level_code: string; current_salary: number }[];
 }
 
-export default function EmployeeScatter({ projections }: EmployeeScatterProps) {
+export default function EmployeeScatter({ projections, careers }: EmployeeScatterProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   const data = projections.map(p => {
-    const career = employeeCareers.find(c => c.employeeId === p.employeeId);
-    const lastKPI = career?.performanceHistory.slice(-1)[0]?.kpiScore || 60;
+    const career = careers.find(c => String(c.employee_id) === String(p.employeeId));
+    const salary = career?.current_salary
+      ? Math.round(career.current_salary / 1_000_000)
+      : Math.round(p.projectedTotal / 1_000_000);
     return {
       name: p.employeeName.split(' ').slice(-2).join(' '),
-      salary: Math.round(p.projectedTotal / 1_000_000),
-      kpi: lastKPI,
+      salary,
+      kpi: p.completionRate || 60,
       dept: p.department.replace('Phòng ', ''),
     };
   });
@@ -35,11 +37,9 @@ export default function EmployeeScatter({ projections }: EmployeeScatterProps) {
           <YAxis type="number" dataKey="salary" name="Lương" tick={{ fontSize: 10 }} tickFormatter={v => `${v}M`} label={{ value: 'Thu nhập (M)', angle: -90, position: 'insideLeft', fontSize: 10 }} />
           <ZAxis range={[40, 60]} />
           <Tooltip
-            formatter={(value: number, name: string) => [name === 'kpi' ? `${value}%` : `${value}M VND`, name === 'kpi' ? 'KPI' : 'Thu nhập']}
-            labelFormatter={(label: string) => ''}
-            content={({ payload }) => {
-              if (!payload?.length) return null;
-              const d = payload[0].payload;
+            content={({ payload }: { payload?: Array<{ payload?: Record<string, unknown> }> }) => {
+              if (!payload?.length || !payload[0].payload) return null;
+              const d = payload[0].payload as { name: string; dept: string; kpi: number; salary: number };
               return (
                 <div className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm text-xs">
                   <p className="font-semibold text-slate-800">{d.name}</p>

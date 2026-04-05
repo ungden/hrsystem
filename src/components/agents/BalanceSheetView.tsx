@@ -1,7 +1,7 @@
 "use client";
 
 import { BalanceSheet } from '@/lib/financial-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 import { CheckCircle2 } from 'lucide-react';
 
 interface BalanceSheetViewProps {

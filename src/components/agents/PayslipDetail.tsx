@@ -1,5 +1,5 @@
 import { PayslipMonth } from '@/lib/cascade-types';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 interface PayslipDetailProps {
   payslip: PayslipMonth;

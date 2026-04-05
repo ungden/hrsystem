@@ -123,15 +123,18 @@ export default function LoginPage() {
 
           {/* Demo Mode */}
           <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-[11px] text-slate-400 text-center mb-3">DEMO MODE (không cần đăng nhập)</p>
-            <div className="flex gap-2">
-              <button onClick={handleDemoAdmin} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 rounded-xl transition-colors">
-                Demo Admin
+            <p className="text-[11px] text-slate-400 text-center mb-3">DEMO MODE — Chọn vai trò để trải nghiệm</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={handleDemoAdmin} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2.5 rounded-xl transition-colors">
+                CEO / Admin
               </button>
-              <button onClick={handleDemoEmployee} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium py-2 rounded-xl transition-colors">
-                Demo Nhân viên
+              <button onClick={handleDemoEmployee} className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium py-2.5 rounded-xl transition-colors">
+                Nhân viên
               </button>
             </div>
+            <p className="text-[10px] text-slate-400 text-center mt-3">
+              11 NV | 696 tasks | 8 SP | 8 đơn hàng | 15 NVL | KH vs Thực tế
+            </p>
           </div>
         </div>
       </div>

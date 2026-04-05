@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import PageHeader from '@/components/PageHeader';
 import IncomeStatementChart from '@/components/agents/IncomeStatementChart';
 import IncomeStatementTable from '@/components/agents/IncomeStatementTable';
 import { runFullCoordination } from '@/lib/agents/coordinator';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 export default function PnLDetailPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { setMounted(true); runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Kết quả Kinh doanh" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
   const statements = state.financials.incomeStatements;
 
   // Budget variance data
-  const varianceData = statements.slice(-6).map(m => ({
+  const varianceData = statements.slice(-6).map((m: any) => ({
     month: m.month,
     'Thực tế': Math.round(m.doanhThu.tongDoanhThu / 1_000_000),
     'Ngân sách': Math.round(m.nganSachDoanhThu / 1_000_000),
@@ -24,7 +24,7 @@ export default function PnLDetailPage() {
   }));
 
   // Revenue by department
-  const revenueByDept = statements.slice(-6).map(m => ({
+  const revenueByDept = statements.slice(-6).map((m: any) => ({
     month: m.month,
     'Kinh doanh': Math.round(m.doanhThu.kinhdoanh / 1_000_000),
     'Marketing': Math.round(m.doanhThu.marketing / 1_000_000),

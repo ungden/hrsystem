@@ -1,23 +1,53 @@
 import { IndividualPlan, AgentMessage } from '../agent-types';
-import { employees, employeeCareers, getPerformanceRating } from '../mock-data';
+import { getEmployees, getEmployeeCareers, getPerformanceRatings, getTasks } from '@/lib/supabase-data';
 
-export function runPerformanceCoachAgent(plans: IndividualPlan[]): {
+export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise<{
   updatedPlans: IndividualPlan[];
   messages: AgentMessage[];
-} {
-  const activeEmployees = employees.filter(e => e.trangThai !== 'da_nghi');
+}> {
+  const [employees, employeeCareers, allRatings, allTasks] = await Promise.all([
+    getEmployees(),
+    getEmployeeCareers(),
+    getPerformanceRatings(),
+    getTasks(),
+  ]);
+
+  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
   const messages: AgentMessage[] = [];
 
-  // Analyze each employee's performance
+  // Build task completion map per employee: { empId → { done, total, completionRate } }
+  const empTaskMap = new Map<number, { done: number; total: number; completionRate: number }>();
+  for (const emp of activeEmployees) {
+    const empTasks = allTasks.filter((t: { assignee_id: number }) => t.assignee_id === emp.id);
+    const done = empTasks.filter((t: { status: string }) => t.status === 'done').length;
+    const total = empTasks.length;
+    empTaskMap.set(emp.id, {
+      done,
+      total,
+      completionRate: total > 0 ? done / total : 0,
+    });
+  }
+
+  // Analyze each plan: use BOTH performance ratings AND real task metrics
   const riskEmployees: string[] = [];
   const starEmployees: string[] = [];
 
   const updatedPlans = plans.map(plan => {
-    const career = employeeCareers.find(c => c.employeeId === plan.employeeId);
-    const recentRating = career?.performanceHistory.slice(-1)[0];
+    const empId = Number(plan.employeeId);
+    const empRatings = allRatings.filter((r: { employee_id: number }) => r.employee_id === empId);
+    const recentRating = empRatings.length > 0 ? empRatings[empRatings.length - 1] : null;
+    const taskStats = empTaskMap.get(empId);
+    const completionRate = taskStats?.completionRate ?? 0;
 
-    // Check if employee has weak historical performance
-    if (recentRating && (recentRating.rating === 'Weak' || recentRating.rating === 'Poor')) {
+    // Risk: < 30% task completion AND weak/poor rating → at_risk
+    if (completionRate < 0.3 && recentRating && (recentRating.tier === 'Weak' || recentRating.tier === 'Poor')) {
+      if (plan.status === 'in_progress' || plan.status === 'not_started') {
+        return { ...plan, status: 'at_risk' as const };
+      }
+    }
+
+    // Also flag if just weak/poor rating (existing logic)
+    if (recentRating && (recentRating.tier === 'Weak' || recentRating.tier === 'Poor')) {
       if (plan.status === 'in_progress' || plan.status === 'not_started') {
         return { ...plan, status: 'at_risk' as const };
       }
@@ -26,24 +56,37 @@ export function runPerformanceCoachAgent(plans: IndividualPlan[]): {
     return plan;
   });
 
-  // Aggregate employee risk analysis
+  // Aggregate employee risk/star analysis using real data
+  const processedEmployees = new Set<number>();
   for (const emp of activeEmployees) {
-    const empPlans = updatedPlans.filter(p => p.employeeId === emp.id);
-    if (empPlans.length === 0) continue;
+    if (processedEmployees.has(emp.id)) continue;
+    processedEmployees.add(emp.id);
 
-    const completedPlans = empPlans.filter(p => p.status === 'completed').length;
-    const atRiskPlans = empPlans.filter(p => p.status === 'at_risk').length;
-    const completionRate = empPlans.length > 0 ? completedPlans / empPlans.length : 0;
+    const empId = String(emp.id);
+    const empPlans = updatedPlans.filter(p => p.employeeId === empId);
+    const taskStats = empTaskMap.get(emp.id);
+    const completionRate = taskStats?.completionRate ?? 0;
 
-    const career = employeeCareers.find(c => c.employeeId === emp.id);
-    const avgKPI = career?.performanceHistory.length
-      ? Math.round(career.performanceHistory.reduce((s, h) => s + h.kpiScore, 0) / career.performanceHistory.length)
+    const empRatings = allRatings.filter((r: { employee_id: number }) => r.employee_id === emp.id);
+    const avgKPI = empRatings.length > 0
+      ? Math.round(empRatings.reduce((s: number, r: { kpi_score: number }) => s + r.kpi_score, 0) / empRatings.length)
       : 60;
+    const recentRating = empRatings.length > 0 ? empRatings[empRatings.length - 1] : null;
+    const recentTier = recentRating?.tier || 'Good';
 
-    if (atRiskPlans > 0 || completionRate < 0.3 || avgKPI < 55) {
-      riskEmployees.push(emp.name);
-    } else if (completionRate >= 0.8 && avgKPI >= 80) {
-      starEmployees.push(emp.name);
+    // Risk detection: < 30% task completion AND weak/poor rating
+    if (completionRate < 0.3 && (recentTier === 'Weak' || recentTier === 'Poor')) {
+      riskEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI})`);
+    }
+    // Star detection: ≥ 80% task completion AND strong/top rating
+    else if (completionRate >= 0.8 && (recentTier === 'Strong' || recentTier === 'Top')) {
+      starEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI})`);
+    }
+    // Also flag employees with plans at risk but who don't meet strict criteria
+    else if (empPlans.some(p => p.status === 'at_risk') || avgKPI < 55) {
+      if (!riskEmployees.some(r => r.startsWith(emp.name))) {
+        riskEmployees.push(`${emp.name} (KPI: ${avgKPI})`);
+      }
     }
   }
 
@@ -53,12 +96,21 @@ export function runPerformanceCoachAgent(plans: IndividualPlan[]): {
   const atRiskCount = updatedPlans.filter(p => p.status === 'at_risk').length;
   const inProgressCount = updatedPlans.filter(p => p.status === 'in_progress').length;
 
+  // Overall task stats across company
+  let totalTasksDone = 0;
+  let totalTasksAll = 0;
+  empTaskMap.forEach(stats => {
+    totalTasksDone += stats.done;
+    totalTasksAll += stats.total;
+  });
+  const overallTaskCompletion = totalTasksAll > 0 ? Math.round((totalTasksDone / totalTasksAll) * 100) : 0;
+
   messages.push({
     id: 'msg-coach-1',
     agentRole: 'performance_coach',
     agentName: 'AI Coach',
     timestamp: new Date().toISOString(),
-    content: `Tổng quan hiệu suất: ${totalPlans} nhiệm vụ - Hoàn thành: ${completedCount} (${Math.round(completedCount/totalPlans*100)}%), Đang thực hiện: ${inProgressCount}, Rủi ro: ${atRiskCount} (${Math.round(atRiskCount/totalPlans*100)}%).`,
+    content: `Tong quan hieu suat: ${totalPlans} nhiem vu - Hoan thanh: ${completedCount} (${totalPlans > 0 ? Math.round(completedCount/totalPlans*100) : 0}%), Dang thuc hien: ${inProgressCount}, Rui ro: ${atRiskCount} (${totalPlans > 0 ? Math.round(atRiskCount/totalPlans*100) : 0}%). Task completion thuc te (Supabase): ${totalTasksDone}/${totalTasksAll} (${overallTaskCompletion}%).`,
     type: 'analysis',
   });
 
@@ -68,7 +120,7 @@ export function runPerformanceCoachAgent(plans: IndividualPlan[]): {
       agentRole: 'performance_coach',
       agentName: 'AI Coach',
       timestamp: new Date().toISOString(),
-      content: `Cảnh báo: ${riskEmployees.length} nhân viên cần hỗ trợ: ${riskEmployees.slice(0, 5).join(', ')}${riskEmployees.length > 5 ? '...' : ''}. Đề xuất: Tổ chức 1-on-1 coaching, điều chỉnh khối lượng công việc, hoặc ghép cặp mentor.`,
+      content: `Canh bao: ${riskEmployees.length} nhan vien can ho tro: ${riskEmployees.slice(0, 5).join(', ')}${riskEmployees.length > 5 ? '...' : ''}. De xuat: To chuc 1-on-1 coaching, dieu chinh khoi luong cong viec, hoac ghep cap mentor.`,
       type: 'alert',
     });
   }
@@ -79,7 +131,7 @@ export function runPerformanceCoachAgent(plans: IndividualPlan[]): {
       agentRole: 'performance_coach',
       agentName: 'AI Coach',
       timestamp: new Date().toISOString(),
-      content: `Nhân viên xuất sắc: ${starEmployees.slice(0, 5).join(', ')}. Đề xuất: Xem xét thưởng hiệu suất, cân nhắc promotion, hoặc giao thêm trách nhiệm để phát triển.`,
+      content: `Nhan vien xuat sac: ${starEmployees.slice(0, 5).join(', ')}${starEmployees.length > 5 ? '...' : ''}. De xuat: Xem xet thuong hieu suat, can nhac promotion, hoac giao them trach nhiem de phat trien.`,
       type: 'recommendation',
     });
   }

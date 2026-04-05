@@ -1,89 +1,92 @@
 import { DepartmentGoal, IndividualPlan, AgentMessage } from '../agent-types';
-import { employees, employeeCareers, departments } from '../mock-data';
+import { getEmployees, getTasks } from '@/lib/supabase-data';
 
-// Task templates per department
-const taskTemplates: Record<string, string[]> = {
-  'Phòng Kế toán': ['Lập báo cáo tài chính', 'Đối soát công nợ', 'Kiểm tra sổ sách', 'Chuẩn bị báo cáo thuế', 'Phân tích chi phí'],
-  'Phòng CNTT': ['Phát triển tính năng mới', 'Sửa lỗi hệ thống', 'Tối ưu hiệu suất', 'Nâng cấp bảo mật', 'Viết tài liệu kỹ thuật'],
-  'Phòng Kinh doanh': ['Tìm khách hàng mới', 'Chăm sóc khách hàng', 'Đàm phán hợp đồng', 'Phân tích thị trường', 'Mở rộng kênh bán'],
-  'Phòng Nhân sự': ['Tuyển dụng nhân sự', 'Đào tạo nhân viên', 'Đánh giá hiệu suất', 'Cập nhật chính sách', 'Tổ chức hoạt động'],
-  'Phòng Hành chính': ['Quản lý hồ sơ', 'Tổ chức sự kiện', 'Mua sắm vật tư', 'Bảo trì cơ sở vật chất'],
-  'Phòng Marketing': ['Chạy chiến dịch digital', 'Tạo nội dung marketing', 'Phân tích hiệu quả quảng cáo', 'Quản lý thương hiệu', 'SEO/SEM'],
-};
-
-export function runDeptManagerAgent(goals: DepartmentGoal[]): {
+export async function runDeptManagerAgent(goals: DepartmentGoal[]): Promise<{
   plans: IndividualPlan[];
   messages: AgentMessage[];
-} {
-  const activeEmployees = employees.filter(e => e.trangThai !== 'da_nghi');
+}> {
+  const [employees, allTasks] = await Promise.all([
+    getEmployees(),
+    getTasks(),
+  ]);
+
+  const activeEmployees = employees.filter((e: { status: string }) => e.status !== 'inactive');
+  const departments = [...new Set(activeEmployees.map((e: { department: string }) => e.department))];
+
   const allPlans: IndividualPlan[] = [];
   const allMessages: AgentMessage[] = [];
   let planId = 1;
 
   for (const dept of departments) {
     const deptGoals = goals.filter(g => g.department === dept);
-    const deptEmployees = activeEmployees.filter(e => e.phongBan === dept);
+    const deptEmployees = activeEmployees.filter((e: { department: string }) => e.department === dept);
     if (deptEmployees.length === 0 || deptGoals.length === 0) continue;
 
-    // Calculate employee level weights
-    const empWeights = deptEmployees.map(emp => {
-      const career = employeeCareers.find(c => c.employeeId === emp.id);
-      const levelNum = parseInt((career?.levelCode || 'L3').slice(1));
-      return { emp, weight: levelNum * 1.5, career };
-    });
-    const totalWeight = empWeights.reduce((s, e) => s + e.weight, 0);
-
-    const templates = taskTemplates[dept] || ['Thực hiện nhiệm vụ'];
-
     for (const goal of deptGoals) {
-      // Distribute goal across employees proportional to level weight
-      empWeights.forEach((ew, empIdx) => {
-        const normalizedWeight = Math.round((ew.weight / totalWeight) * 100);
-        const individualTarget = Math.round(goal.targetValue * (ew.weight / totalWeight));
-        const individualActual = Math.round(goal.currentValue * (ew.weight / totalWeight));
-        const template = templates[empIdx % templates.length];
-        const taskTitle = `${template} - ${goal.name.split(':').pop()?.trim() || goal.name}`;
+      for (const emp of deptEmployees) {
+        const empTasks = allTasks.filter((t: { assignee_id: number }) => t.assignee_id === emp.id);
+        const totalPoints = empTasks.reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
+        const donePoints = empTasks
+          .filter((t: { status: string }) => t.status === 'done')
+          .reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
 
-        // Status based on completion
-        const ratio = individualTarget > 0 ? individualActual / individualTarget : 0;
+        const completionRatio = totalPoints > 0 ? donePoints / totalPoints : 0;
+
         let status: IndividualPlan['status'] = 'not_started';
-        if (ratio >= 1) status = 'completed';
-        else if (ratio >= 0.6) status = 'in_progress';
-        else if (ratio >= 0.3) status = 'at_risk';
+        if (completionRatio >= 1) status = 'completed';
+        else if (completionRatio >= 0.5) status = 'in_progress';
+        else if (completionRatio >= 0.2) status = 'at_risk';
 
-        // Points proportional to weight (base 10000 points = 100%)
-        const points = Math.round(normalizedWeight * 100);
+        const taskTitle = empTasks.length > 0
+          ? empTasks[0].title
+          : 'Khong co task';
+
+        // Latest due_date from tasks, or end of current quarter
+        const dueDates = empTasks
+          .filter((t: { due_date: string | null }) => t.due_date)
+          .map((t: { due_date: string }) => t.due_date)
+          .sort();
+        const deadline = dueDates.length > 0
+          ? dueDates[dueDates.length - 1]
+          : '2026-06-30';
+
+        const weight = deptEmployees.length > 0 ? Math.round(100 / deptEmployees.length) : 100;
 
         allPlans.push({
           id: `ip-${planId}`,
           departmentGoalId: goal.id,
-          employeeId: ew.emp.id,
-          employeeName: ew.emp.name,
+          employeeId: String(emp.id),
+          employeeName: emp.name,
           taskTitle,
-          description: `Đóng góp ${normalizedWeight}% cho mục tiêu "${goal.name}"`,
-          targetValue: individualTarget,
-          currentValue: Math.min(individualActual, individualTarget),
+          description: `${empTasks.length} task, ${donePoints}/${totalPoints} diem hoan thanh`,
+          targetValue: totalPoints,
+          currentValue: donePoints,
           unit: goal.unit,
-          weight: normalizedWeight,
-          deadline: '30/06/2026',
+          weight,
+          deadline,
           status,
-          points,
+          points: totalPoints,
         });
         planId++;
-      });
+      }
     }
 
     // Summary message per dept
-    const deptPlans = allPlans.filter(p => deptEmployees.some(e => e.id === p.employeeId));
+    const deptPlans = allPlans.filter(p =>
+      deptEmployees.some((e: { id: number }) => String(e.id) === p.employeeId)
+    );
     const completed = deptPlans.filter(p => p.status === 'completed').length;
     const atRisk = deptPlans.filter(p => p.status === 'at_risk').length;
+    const deptTaskCount = allTasks.filter((t: { assignee_id: number }) =>
+      deptEmployees.some((e: { id: number }) => e.id === t.assignee_id)
+    ).length;
 
     allMessages.push({
       id: `msg-dm-${dept}`,
       agentRole: 'dept_manager',
-      agentName: `Trưởng phòng ${dept.replace('Phòng ', '')}`,
+      agentName: `Truong phong ${dept}`,
       timestamp: new Date().toISOString(),
-      content: `${dept}: Đã phân bổ ${deptGoals.length} mục tiêu cho ${deptEmployees.length} nhân viên → ${deptPlans.length} nhiệm vụ cá nhân. Hoàn thành: ${completed}, Đang rủi ro: ${atRisk}. Phân bổ theo trọng số cấp bậc (L cao = trách nhiệm lớn hơn).`,
+      content: `${dept}: ${deptTaskCount} task thuc te tu Supabase, phan bo cho ${deptEmployees.length} nhan vien -> ${deptPlans.length} ke hoach ca nhan. Hoan thanh: ${completed}, Rui ro: ${atRisk}.`,
       type: 'decision',
     });
   }

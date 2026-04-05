@@ -1,23 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { DollarSign, Users, TrendingDown, Gift } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import CostBreakdownChart from '@/components/agents/CostBreakdownChart';
 import DepartmentCostCard from '@/components/agents/DepartmentCostCard';
 import { runFullCoordination } from '@/lib/agents/coordinator';
-import { formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/format';
 
 export default function CostManagementPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [state, setState] = useState<any>(null);
+  useEffect(() => { setMounted(true); runFullCoordination(2026, 'Q2').then(s => setState(s)); }, []);
+  if (!state) return <div className="p-6"><PageHeader title="Quản lý chi phí" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
 
-  const state = useMemo(() => runFullCoordination(2026, 'Q2'), []);
-
-  const totalCost = state.costProjections.reduce((s, c) => s + c.totalCost, 0);
-  const totalHeadcount = state.costProjections.reduce((s, c) => s + c.headcount, 0);
-  const totalBonus = state.costProjections.reduce((s, c) => s + c.projectedBonusPool, 0);
+  const totalCost = state.costProjections.reduce((s: number, c: any) => s + c.totalCost, 0);
+  const totalHeadcount = state.costProjections.reduce((s: number, c: any) => s + c.headcount, 0);
+  const totalBonus = state.costProjections.reduce((s: number, c: any) => s + c.projectedBonusPool, 0);
   const avgCost = totalHeadcount > 0 ? Math.round(totalCost / totalHeadcount) : 0;
 
   return (
@@ -69,8 +69,8 @@ export default function CostManagementPage() {
       <h2 className="text-base font-semibold text-slate-800 mb-3">Chi tiết theo phòng ban</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {state.costProjections
-          .sort((a, b) => b.totalCost - a.totalCost)
-          .map(p => (
+          .sort((a: any, b: any) => b.totalCost - a.totalCost)
+          .map((p: any) => (
             <DepartmentCostCard key={p.department} projection={p} />
           ))}
       </div>
@@ -92,7 +92,7 @@ export default function CostManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {state.costProjections.map(c => (
+              {state.costProjections.map((c: any) => (
                 <tr key={c.department} className="border-b border-slate-50">
                   <td className="py-2.5 pr-3 font-medium text-slate-700">{c.department}</td>
                   <td className="py-2.5 pr-3 text-center text-slate-500">{c.headcount}</td>
@@ -106,9 +106,9 @@ export default function CostManagementPage() {
               <tr className="border-t-2 border-slate-200 font-bold">
                 <td className="py-2.5 pr-3 text-slate-800">Tổng cộng</td>
                 <td className="py-2.5 pr-3 text-center text-slate-800">{totalHeadcount}</td>
-                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s, c) => s + c.totalBaseSalary, 0))}</td>
-                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s, c) => s + c.totalAllowances, 0))}</td>
-                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s, c) => s + c.totalInsurance, 0))}</td>
+                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s: number, c: any) => s + c.totalBaseSalary, 0))}</td>
+                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s: number, c: any) => s + c.totalAllowances, 0))}</td>
+                <td className="py-2.5 pr-3 text-right text-slate-800">{formatCurrency(state.costProjections.reduce((s: number, c: any) => s + c.totalInsurance, 0))}</td>
                 <td className="py-2.5 pr-3 text-right text-emerald-700">{formatCurrency(totalBonus)}</td>
                 <td className="py-2.5 text-right text-blue-700">{formatCurrency(totalCost)}</td>
               </tr>

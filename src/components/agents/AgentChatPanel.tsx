@@ -46,8 +46,8 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
     setInput('');
     setIsThinking(true);
 
-    setTimeout(() => {
-      const responses = processUserChat(input.trim(), state);
+    setTimeout(async () => {
+      const responses = await processUserChat(input.trim(), state);
       const updatedHistory = [...newHistory, ...responses];
       onStateUpdate({ ...state, chatHistory: updatedHistory });
       setIsThinking(false);

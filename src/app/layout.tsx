@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -21,10 +20,7 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${inter.variable} antialiased`}>
       <body className="bg-slate-50/50">
-        <Sidebar />
-        <main className="ml-[260px] min-h-screen">
-          {children}
-        </main>
+        {children}
       </body>
     </html>
   );

@@ -198,8 +198,10 @@ export async function addSelfTask(task: {
   return data;
 }
 
-export async function getEmployeePointStats(employeeId: number, monthNumber: number) {
-  const tasks = await getTasks({ assignee_id: employeeId, month_number: monthNumber });
+export async function getEmployeePointStats(employeeId: number, monthNumber?: number) {
+  const filters: Record<string, number> = { assignee_id: employeeId };
+  if (monthNumber) filters.month_number = monthNumber;
+  const tasks = await getTasks(filters);
   const totalPoints = tasks.reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
   const earnedPoints = tasks.filter((t: { status: string }) => t.status === 'done')
     .reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);

@@ -1,24 +1,29 @@
-import { createClient } from './supabase';
+import { createBrowserClient } from '@supabase/ssr';
 
 // ============ SUPABASE DATA FETCHERS ============
-// These replace mock-data.ts for real data from Supabase project `hrai`
+// Lazy init to avoid build-time errors when env vars aren't available
 
-const supabase = createClient();
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  );
+}
 
 export async function getEmployees() {
-  const { data, error } = await supabase.from('employees').select('*').order('id');
+  const { data, error } = await getSupabase().from('employees').select('*').order('id');
   if (error) throw error;
   return data || [];
 }
 
 export async function getEmployee(id: number) {
-  const { data, error } = await supabase.from('employees').select('*').eq('id', id).single();
+  const { data, error } = await getSupabase().from('employees').select('*').eq('id', id).single();
   if (error) throw error;
   return data;
 }
 
 export async function getTasks(filters?: { assignee_id?: number; status?: string; department?: string; month_number?: number }) {
-  let query = supabase.from('tasks').select('*');
+  let query = getSupabase().from('tasks').select('*');
   if (filters?.assignee_id) query = query.eq('assignee_id', filters.assignee_id);
   if (filters?.status) query = query.eq('status', filters.status);
   if (filters?.department) query = query.eq('department', filters.department);
@@ -39,37 +44,37 @@ export async function getTaskStats(assignee_id?: number) {
 }
 
 export async function getDeals() {
-  const { data, error } = await supabase.from('deals').select('*').order('date');
+  const { data, error } = await getSupabase().from('deals').select('*').order('date');
   if (error) throw error;
   return data || [];
 }
 
 export async function getKPIs() {
-  const { data, error } = await supabase.from('kpis').select('*').order('id');
+  const { data, error } = await getSupabase().from('kpis').select('*').order('id');
   if (error) throw error;
   return data || [];
 }
 
 export async function getExpenses() {
-  const { data, error } = await supabase.from('expenses').select('*').order('id');
+  const { data, error } = await getSupabase().from('expenses').select('*').order('id');
   if (error) throw error;
   return data || [];
 }
 
 export async function getChannelEconomics() {
-  const { data, error } = await supabase.from('channel_economics').select('*').order('revenue_share', { ascending: false });
+  const { data, error } = await getSupabase().from('channel_economics').select('*').order('revenue_share', { ascending: false });
   if (error) throw error;
   return data || [];
 }
 
 export async function getMonthlyPnL() {
-  const { data, error } = await supabase.from('monthly_pnl').select('*').order('year').order('month');
+  const { data, error } = await getSupabase().from('monthly_pnl').select('*').order('year').order('month');
   if (error) throw error;
   return data || [];
 }
 
 export async function getPayrolls(month?: string) {
-  let query = supabase.from('payrolls').select('*');
+  let query = getSupabase().from('payrolls').select('*');
   if (month) query = query.eq('month', month);
   const { data, error } = await query.order('employee_id');
   if (error) throw error;
@@ -77,37 +82,37 @@ export async function getPayrolls(month?: string) {
 }
 
 export async function getCustomers() {
-  const { data, error } = await supabase.from('customers').select('*');
+  const { data, error } = await getSupabase().from('customers').select('*');
   if (error) throw error;
   return data || [];
 }
 
 export async function getPartners() {
-  const { data, error } = await supabase.from('partners').select('*');
+  const { data, error } = await getSupabase().from('partners').select('*');
   if (error) throw error;
   return data || [];
 }
 
 export async function getReceivables() {
-  const { data, error } = await supabase.from('receivables').select('*');
+  const { data, error } = await getSupabase().from('receivables').select('*');
   if (error) throw error;
   return data || [];
 }
 
 export async function getPayables() {
-  const { data, error } = await supabase.from('payables').select('*');
+  const { data, error } = await getSupabase().from('payables').select('*');
   if (error) throw error;
   return data || [];
 }
 
 export async function getFinanceSettings() {
-  const { data, error } = await supabase.from('finance_settings').select('*').single();
+  const { data, error } = await getSupabase().from('finance_settings').select('*').single();
   if (error) throw error;
   return data;
 }
 
 export async function getRoadmap() {
-  const { data, error } = await supabase.from('roadmaps').select('*').order('id').limit(1).single();
+  const { data, error } = await getSupabase().from('roadmaps').select('*').order('id').limit(1).single();
   if (error) return null;
   return data;
 }
@@ -159,21 +164,21 @@ export async function getDashboardData() {
 // ============ MUTATIONS ============
 
 export async function updateTaskStatus(taskId: string, status: string) {
-  const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId);
+  const { error } = await getSupabase().from('tasks').update({ status }).eq('id', taskId);
   if (error) throw error;
 }
 
 export async function updateEmployee(id: number, updates: Record<string, unknown>) {
-  const { error } = await supabase.from('employees').update(updates).eq('id', id);
+  const { error } = await getSupabase().from('employees').update(updates).eq('id', id);
   if (error) throw error;
 }
 
 export async function addExpense(expense: { title: string; amount: number; category: string; date: string }) {
-  const { error } = await supabase.from('expenses').insert(expense);
+  const { error } = await getSupabase().from('expenses').insert(expense);
   if (error) throw error;
 }
 
 export async function addDeal(deal: { title: string; company: string; amount: number; stage: string; date: string }) {
-  const { error } = await supabase.from('deals').insert(deal);
+  const { error } = await getSupabase().from('deals').insert(deal);
   if (error) throw error;
 }

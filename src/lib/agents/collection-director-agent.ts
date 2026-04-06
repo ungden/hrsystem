@@ -1,19 +1,22 @@
 import { CollectionPlan, AgentMessage } from '../agent-types';
 import { getProducts, getOrders } from '@/lib/supabase-data';
 
-const collectionCalendar: Array<{ month: number; name: string; theme: string; targetSKUs: number }> = [
-  { month: 1, name: 'Tết Rồng Vàng', theme: 'Lunar New Year, Rồng, Đỏ/Vàng', targetSKUs: 30 },
-  { month: 2, name: 'Couple Tee Valentine', theme: 'Love, Đôi, Minimalist', targetSKUs: 20 },
-  { month: 3, name: 'Spring Collection', theme: 'Hoa, Pastel, Fresh', targetSKUs: 25 },
-  { month: 4, name: 'Tropical Vibes', theme: 'Lá cây, Biển, Neon', targetSKUs: 30 },
-  { month: 5, name: 'Beach & Chill + Collab', theme: 'Surf, Sunset, Artist collab', targetSKUs: 35 },
-  { month: 6, name: 'Summer Essentials', theme: 'Solid colors, Quote tees', targetSKUs: 25 },
-  { month: 7, name: 'Back to School', theme: 'Campus, Young, Fun', targetSKUs: 30 },
-  { month: 8, name: 'Minimalist Office', theme: 'Clean, Professional, Subtle', targetSKUs: 20 },
-  { month: 9, name: 'Autumn Vibes', theme: 'Earth tones, Vintage', targetSKUs: 25 },
-  { month: 10, name: 'Hoodie & Sweater', theme: 'Layering, Cozy, Graphic', targetSKUs: 30 },
-  { month: 11, name: 'Black Friday Special', theme: 'Best sellers reprint + Limited', targetSKUs: 40 },
-  { month: 12, name: 'Xmas & New Year', theme: 'Holiday, Gift, Festive', targetSKUs: 30 },
+// Teeworld brand DNA: graphic tees, retro-modern Saigonese, fun Vietnamese quotes, travel lifestyle
+// Best sellers: Saigonese, retro-modern, quote tees ("Không Được Đánh Khách Hàng")
+// Lines: Texture Teeworld Studio (signature), Happy Sunday (sub-brand: joy + travel)
+const collectionCalendar: Array<{ month: number; name: string; theme: string; line: string; targetSKUs: number }> = [
+  { month: 1, name: 'Saigonese Tết', theme: 'Retro Sài Gòn x Tết, Rồng vintage, typography cổ điển', line: 'Texture Teeworld Studio', targetSKUs: 30 },
+  { month: 2, name: 'Happy Sunday: Valentine Getaway', theme: 'Du lịch đôi, Đà Lạt/biển, retro couple tees', line: 'Happy Sunday', targetSKUs: 20 },
+  { month: 3, name: 'Saigonese: Phố Cổ Mới', theme: 'Sài Gòn xưa & nay, quán café retro, xe Vespa, typography', line: 'Texture Teeworld Studio', targetSKUs: 25 },
+  { month: 4, name: 'Quote Season: Nói Thật Đi', theme: 'Fun quotes VN: "Không Được Đánh Khách Hàng", humor đời thường', line: 'Texture Teeworld Studio', targetSKUs: 30 },
+  { month: 5, name: 'Happy Sunday: Beach Escape', theme: 'Biển, Phú Quốc, Quy Nhơn vibe, surf retro, sunset palette', line: 'Happy Sunday', targetSKUs: 35 },
+  { month: 6, name: 'Saigonese: Street Culture', theme: 'Xe ôm, bánh mì, cà phê sữa đá, Sài Gòn streetlife', line: 'Texture Teeworld Studio', targetSKUs: 25 },
+  { month: 7, name: 'Quote Season: Tuổi Trẻ', theme: 'Student quotes, campus life, retro-modern school vibes', line: 'Texture Teeworld Studio', targetSKUs: 30 },
+  { month: 8, name: 'Happy Sunday: Mountain High', theme: 'Trekking, Sapa/Hà Giang, nature illustration, earth tones', line: 'Happy Sunday', targetSKUs: 25 },
+  { month: 9, name: 'Saigonese: Retro Film', theme: 'Phim Việt xưa, poster vintage, color grading retro', line: 'Texture Teeworld Studio', targetSKUs: 25 },
+  { month: 10, name: 'Texture Studio: Layer Up', theme: 'Hoodie/Sweater graphic, texture art, layering streetwear', line: 'Texture Teeworld Studio', targetSKUs: 30 },
+  { month: 11, name: 'Best of Teeworld 2026', theme: 'Top sellers reprint: Saigonese + Quote + Happy Sunday hits', line: 'All Lines', targetSKUs: 40 },
+  { month: 12, name: 'Happy Sunday: Year End Trip', theme: 'Holiday travel, Giáng sinh retro, New Year countdown', line: 'Happy Sunday', targetSKUs: 30 },
 ];
 
 const REPRINT_THRESHOLD = 50; // > 50 bán/tháng → reprint
@@ -79,6 +82,8 @@ export async function runCollectionDirectorAgent(currentMonth: number = 4): Prom
 
   const currentCollection = plans.find(p => p.month === currentMonth);
   const nextCollection = plans.find(p => p.month === currentMonth + 1);
+  const currentCalendar = collectionCalendar.find(c => c.month === currentMonth);
+  const nextCalendar = collectionCalendar.find(c => c.month === currentMonth + 1);
   const totalSKUs = collectionCalendar.reduce((s, c) => s + c.targetSKUs, 0);
 
   const messages: AgentMessage[] = [
@@ -87,10 +92,10 @@ export async function runCollectionDirectorAgent(currentMonth: number = 4): Prom
       agentRole: 'collection_director',
       agentName: 'AI Collection Director',
       timestamp: new Date().toISOString(),
-      content: `BST T${currentMonth}: "${currentCollection?.name || 'N/A'}" - ${currentCollection?.theme || ''}. ` +
-        `Kế tiếp T${currentMonth + 1}: "${nextCollection?.name || 'N/A'}" (${nextCollection?.status || 'planned'}). ` +
-        `Tổng ${totalSKUs} SKU/năm (12 BST). ${activeProducts.length} products đang active. ` +
-        `Best sellers: ${bestSellers.length}. Candidates retire: ${candidates.length}.`,
+      content: `BST T${currentMonth}: "${currentCollection?.name || 'N/A'}" [${currentCalendar?.line || 'Texture'}] — ${currentCollection?.theme || ''}. ` +
+        `Kế tiếp T${currentMonth + 1}: "${nextCollection?.name || 'N/A'}" [${nextCalendar?.line || ''}] (${nextCollection?.status || 'planned'}). ` +
+        `Tổng ${totalSKUs} SKU/năm (12 BST). 3 lines: Texture Teeworld Studio (signature) + Happy Sunday (travel/lifestyle) + Quote Season (humor VN). ` +
+        `${activeProducts.length} products active. Best sellers: ${bestSellers.length}. Retire: ${candidates.length}.`,
       type: 'analysis',
     },
     {
@@ -98,11 +103,13 @@ export async function runCollectionDirectorAgent(currentMonth: number = 4): Prom
       agentRole: 'collection_director',
       agentName: 'AI Collection Director',
       timestamp: new Date().toISOString(),
-      content: `Workflow: Brief theme → AI generate 100+ concepts (Banana Pro 2) → Curate top 50 → Refine → Mockup → Approve → Print test → Photography → Launch. ` +
-        `Design-to-market: 7 ngày. Chi phí/mẫu: <50K (AI tools). ` +
+      content: `BRAND DNA: Saigonese retro-modern + fun Vietnamese quotes + Happy Sunday travel lifestyle. ` +
+        `Top sellers: "Không Được Đánh Khách Hàng", Saigonese series, Happy Sunday beach/mountain. ` +
+        `Workflow: Brief → AI generate 100+ concepts (Banana Pro 2) → Curate top 50 → Mockup → Print test → Launch (7 ngày). ` +
+        `Chi phí/mẫu: <50K. ` +
         (candidates.length > 0
-          ? `Đề xuất retire ${candidates.length} design bán chậm. Reprint ${bestSellers.length} best sellers.`
-          : `Không có design cần retire. Focus ra BST mới.`),
+          ? `Retire ${candidates.length} design chậm. Reprint ${bestSellers.length} best sellers.`
+          : `Focus BST mới. Reprint ${bestSellers.length} best sellers đang bán tốt.`),
       type: 'recommendation',
     },
   ];

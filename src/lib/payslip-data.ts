@@ -80,9 +80,9 @@ export async function generatePayslip(employeeId: string, month: number, year: n
   const [employees, employeeCareers, financeSettings, payrollsData, ratingsData] = await Promise.all([
     getEmployees(),
     getEmployeeCareers(),
-    getFinanceSettings().catch(() => null),
-    getPayrolls(`T${month}/${year}`).catch(() => []),
-    getPerformanceRatings({ employee_id: parseInt(employeeId) }).catch(() => []),
+    getFinanceSettings().catch((e) => { console.warn('[Payslip] Không load được cài đặt tài chính:', e.message); return null; }),
+    getPayrolls(`T${month}/${year}`).catch((e) => { console.warn('[Payslip] Không load được bảng lương:', e.message); return []; }),
+    getPerformanceRatings({ employee_id: parseInt(employeeId) }).catch((e) => { console.warn('[Payslip] Không load được đánh giá hiệu suất:', e.message); return []; }),
   ]);
 
   const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);
@@ -261,8 +261,8 @@ export async function generateEmployeeKPICard(employeeId: string, quarter: strin
   const [employees, employeeCareers, ratingsData, financeSettings] = await Promise.all([
     getEmployees(),
     getEmployeeCareers(),
-    getPerformanceRatings({ employee_id: parseInt(employeeId) }).catch(() => []),
-    getFinanceSettings().catch(() => null),
+    getPerformanceRatings({ employee_id: parseInt(employeeId) }).catch((e) => { console.warn('[Payslip] Không load được đánh giá hiệu suất cho KPI:', e.message); return []; }),
+    getFinanceSettings().catch((e) => { console.warn('[Payslip] Không load được cài đặt tài chính cho KPI:', e.message); return null; }),
   ]);
 
   const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);

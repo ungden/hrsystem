@@ -20,7 +20,7 @@ export async function runHRDirectorAgent(targets: BusinessTarget[]): Promise<{
 }> {
   const [employees, financeSettings, pnlData, allTasks, allRatings] = await Promise.all([
     getEmployees(),
-    getFinanceSettings().catch(() => null),
+    getFinanceSettings().catch((e) => { console.warn('[HR Agent] Không load được finance settings, dùng mặc định:', e.message); return null; }),
     getMonthlyPnL(),
     getTasks(),
     getPerformanceRatings(),

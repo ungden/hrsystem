@@ -120,6 +120,16 @@ export default function AdminDashboardPage() {
     <div className="p-6">
       <PageHeader title="Teeworld - Trung tâm điều hành" subtitle="CEO Dashboard — Dữ liệu thật từ Supabase" />
 
+      {/* Quick Actions */}
+      <div className="flex gap-3 mb-6">
+        <Link href="/admin/bao-cao-tong-hop" className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-sm font-medium">
+          <BarChart3 className="w-4 h-4" /> Bao cao AI Agents
+        </Link>
+        <Link href="/admin/tro-chuyen" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          <CheckCircle2 className="w-4 h-4" /> Chat voi AI
+        </Link>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <StatCard icon={DollarSign} label="Doanh thu YTD" value={formatVND(summary.totalRevenue)} color="green" />

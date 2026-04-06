@@ -635,7 +635,7 @@ async function handleEmpCommand(prefix: string, empName: string, state: AgentCoo
     return result;
   }
 
-  return null;
+  return `Không hiểu lệnh "${prefix}" cho ${emp.name}. Thử: /emp, /salary, /kpi + tên nhân viên.`;
 }
 
 // Handle dept-specific commands

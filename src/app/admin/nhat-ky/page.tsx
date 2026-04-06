@@ -36,6 +36,8 @@ export default function ActivityLogPage() {
     channel_optimizer: 'Channel Optimizer',
     inventory_planner: 'Inventory Planner',
     collection_director: 'Collection Director',
+    market_research: 'Market Research',
+    strategy: 'Strategy Advisor',
   };
 
   const typeLabels: Record<AgentMessage['type'], string> = {

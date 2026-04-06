@@ -160,6 +160,10 @@ function buildDefense(
       return buildInventoryDefense(proposal, question, state);
     case 'collection_director':
       return buildCollectionDefense(proposal, question, state);
+    case 'market_research':
+      return buildMarketResearchDefense(proposal, question, state);
+    case 'strategy':
+      return buildStrategyDefense(proposal, question, state);
     default:
       return { content: `Đã tiếp nhận ý kiến CEO. Sẽ điều chỉnh đề xuất.`, dataPoints: [] };
   }
@@ -298,6 +302,52 @@ function buildCollectionDefense(proposal: AgentProposal, question: DebateMessage
       `Chi phí/mẫu AI: 50K`,
       `Chi phí/mẫu designer: 1.5M`,
       `Tiết kiệm/năm: ${formatCurrency(totalSKU * 1_450_000)}d`,
+    ],
+  };
+}
+
+function buildMarketResearchDefense(proposal: AgentProposal, question: DebateMessage, state: AgentCoordinationState): QContent {
+  const { marketResearch, channelAnalysis } = state;
+  const opportunities = marketResearch?.opportunities || [];
+  const threats = marketResearch?.threats || [];
+  const totalOpportunity = opportunities.reduce((s, o) => s + o.potentialRevenue, 0);
+  const highThreats = threats.filter(t => t.severity === 'high' || t.severity === 'critical');
+  const totalRev = channelAnalysis?.reduce((s, c) => s + c.revenue, 0) || 0;
+
+  return {
+    content: `Dữ liệu KHÔNG phải ý kiến — đây là benchmark thực tế thị trường. ` +
+      `${opportunities.length} cơ hội tổng ${formatCurrency(totalOpportunity)}d: ` +
+      `${opportunities.slice(0, 2).map(o => `${o.title} (${formatCurrency(o.potentialRevenue)}d, ${o.difficulty})`).join('; ')}. ` +
+      `${highThreats.length} mối đe dọa cao: ${highThreats.slice(0, 2).map(t => t.title).join(', ')}. ` +
+      `Nếu không hành động theo trend, đối thủ sẽ chiếm thị phần. DT hiện tại ${formatCurrency(totalRev)}d/tháng — ` +
+      `cơ hội ${formatCurrency(totalOpportunity)}d = tăng ${Math.round(totalOpportunity / Math.max(totalRev * 12, 1) * 100)}% DT.`,
+    dataPoints: [
+      `Cơ hội: ${formatCurrency(totalOpportunity)}d`,
+      `Mối đe dọa cao: ${highThreats.length}`,
+      `DT/tháng hiện tại: ${formatCurrency(totalRev)}d`,
+    ],
+  };
+}
+
+function buildStrategyDefense(proposal: AgentProposal, question: DebateMessage, state: AgentCoordinationState): QContent {
+  const { strategyReport, financialHealth, businessTargets, individualPlans } = state;
+  const assessment = strategyReport?.strategicAssessment;
+  const blindSpots = strategyReport?.blindSpots || [];
+  const revTarget = businessTargets.find(t => t.category === 'revenue');
+  const revPct = revTarget ? Math.round(revTarget.currentValue / revTarget.targetValue * 100) : 0;
+  const atRisk = individualPlans.filter(p => p.status === 'at_risk').length;
+
+  return {
+    content: `Tôi không tô hồng — đó là nhiệm vụ. Score ${assessment?.score || 0}/100 dựa trên: ` +
+      `DT đạt ${revPct}% mục tiêu, margin ${financialHealth.profitMargin}%, ${atRisk} NV rủi ro. ` +
+      `${blindSpots.length} blind spots CEO CHƯA thấy: ${blindSpots.slice(0, 2).map(b => b.area).join(', ')}. ` +
+      `Bỏ qua lời khuyên này = ${blindSpots[0]?.risk || 'rủi ro không lường trước'}. ` +
+      `Chi phí đề xuất: 0đ. Chi phí BỎ QUA: mất thị phần cho đối thủ đang scale nhanh hơn.`,
+    dataPoints: [
+      `Score: ${assessment?.score || 0}/100`,
+      `DT vs target: ${revPct}%`,
+      `Blind spots: ${blindSpots.length}`,
+      `NV rủi ro: ${atRisk}`,
     ],
   };
 }

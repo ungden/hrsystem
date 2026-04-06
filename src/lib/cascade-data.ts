@@ -172,7 +172,7 @@ export async function generateEmployeeCascade(employeeId: string): Promise<Emplo
     getEmployees(),
     getEmployeeCareers(),
     getTasks({ assignee_id: parseInt(employeeId) }),
-    getMasterPlans().catch(() => []),
+    getMasterPlans().catch((e) => { console.warn('[Cascade] Không load được master plans:', e.message); return []; }),
   ]);
 
   // Fetch real submission actuals for this employee's tasks

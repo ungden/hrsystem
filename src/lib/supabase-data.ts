@@ -208,13 +208,18 @@ export async function addSelfTask(task: {
     throw new Error(`Đã dùng ${selfPoints}/100 điểm tự thêm tháng ${task.month_number}. Không đủ cho ${task.points} điểm nữa.`);
   }
 
+  const selfDueDate = new Date().toISOString().split('T')[0];
+  const selfDayOfMonth = new Date().getDate();
+  const selfWeekNum = Math.ceil(selfDayOfMonth / 7);
+
   const { data, error } = await supabase.from('tasks').insert({
     ...task,
     department: emp.department, // Always use employee's actual department
     status: 'todo',
     source: 'self_added',
     category: 'daily',
-    due_date: new Date().toISOString().split('T')[0],
+    due_date: selfDueDate,
+    week_number: selfWeekNum,
   }).select().single();
   if (error) throw error;
   return data;
@@ -822,11 +827,19 @@ export async function createTask(task: {
     }
   }
 
-  // Validate: month_number must be 1-12
-  const monthNum = task.month_number || new Date().getMonth() + 1;
+  // Resolve due_date first, then derive month/week from it
+  const dueDate = task.due_date || new Date().toISOString().split('T')[0];
+  const dueDateObj = new Date(dueDate + 'T00:00:00'); // Local timezone, no UTC shift
+
+  // Derive month_number from due_date (authoritative source) if not explicitly set
+  const monthNum = task.month_number || (dueDateObj.getMonth() + 1);
   if (monthNum < 1 || monthNum > 12) {
     throw new Error(`Tháng ${monthNum} không hợp lệ. Phải từ 1-12.`);
   }
+
+  // Auto-calculate week_number from due_date (ISO week within month: 1-5)
+  const dayOfMonth = dueDateObj.getDate();
+  const weekNum = Math.ceil(dayOfMonth / 7);
 
   // Warning: check monthly point budget (900 pts planned)
   const existingTasks = await getTasks({ assignee_id: task.assignee_id, month_number: monthNum });
@@ -843,7 +856,8 @@ export async function createTask(task: {
     status: 'todo',
     source: 'planned',
     month_number: monthNum,
-    due_date: task.due_date || new Date().toISOString().split('T')[0],
+    week_number: weekNum,
+    due_date: dueDate,
   }).select().single();
   if (error) throw error;
   return data;

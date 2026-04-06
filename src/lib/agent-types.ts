@@ -1,6 +1,6 @@
 // ============ AI MULTI-AGENT COORDINATION SYSTEM ============
 
-export type AgentRole = 'ceo' | 'hr_director' | 'finance' | 'dept_manager' | 'performance_coach' | 'channel_optimizer' | 'inventory_planner' | 'collection_director';
+export type AgentRole = 'ceo' | 'hr_director' | 'finance' | 'dept_manager' | 'performance_coach' | 'channel_optimizer' | 'inventory_planner' | 'collection_director' | 'market_research' | 'strategy';
 export type AgentStatus = 'idle' | 'thinking' | 'done' | 'error';
 export type QuarterPeriod = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -169,6 +169,9 @@ export interface AgentCoordinationState {
   inventoryForecasts: InventoryForecast[];
   stockAlerts: StockAlert[];
   collectionPlans: CollectionPlan[];
+  // Market Research & Strategy
+  marketResearch?: import('./agents/market-research-agent').MarketResearchReport;
+  strategyReport?: import('./agents/strategy-agent').StrategyReport;
   // Workflow orchestration
   workflowRun?: import('./agents/workflow-types').WorkflowRun;
 }

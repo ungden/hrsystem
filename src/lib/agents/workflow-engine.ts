@@ -14,8 +14,8 @@ import { agentProfiles } from './agent-profiles';
 import {
   coachSendReminder, coachRecommendPromotion,
   inventoryUpdateStock, inventoryFlagLowStock,
-  deptUpdatePriority, hrRebalanceWorkload,
-  ceoAdjustTarget,
+  deptUpdatePriority, hrRebalanceWorkload, hrAssignTask,
+  deptCreateDailyTasks, ceoAdjustTarget,
 } from './agent-skills';
 
 type ProgressCallback = (messages: ChatMessage[]) => void;
@@ -48,35 +48,41 @@ function addEvent(run: WorkflowRun, phase: WorkflowPhase, agentRole: AgentRole, 
 
 // ============ SKILL EXECUTOR ============
 
-async function executeAction(skillFn: string, params: Record<string, unknown>): Promise<boolean> {
+async function executeAction(skillFn: string, params: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
   try {
     switch (skillFn) {
       case 'coachSendReminder':
         await coachSendReminder(params.employeeId as number, params.message as string);
-        return true;
+        return { success: true };
       case 'coachRecommendPromotion':
         await coachRecommendPromotion(params.employeeId as number, params.reason as string);
-        return true;
+        return { success: true };
       case 'inventoryUpdateStock':
         await inventoryUpdateStock(params.itemId as number, params.newStock as number);
-        return true;
+        return { success: true };
       case 'inventoryFlagLowStock':
         await inventoryFlagLowStock();
-        return true;
+        return { success: true };
       case 'deptUpdatePriority':
         await deptUpdatePriority(params.taskId as string, params.newPriority as string);
-        return true;
+        return { success: true };
       case 'hrRebalanceWorkload':
         await hrRebalanceWorkload(params.fromEmpId as number, params.toEmpId as number, params.taskId as string);
-        return true;
+        return { success: true };
+      case 'hrAssignTask':
+        await hrAssignTask(params as Parameters<typeof hrAssignTask>[0]);
+        return { success: true };
+      case 'deptCreateDailyTasks':
+        await deptCreateDailyTasks(params.managerId as number, params.monthNumber as number);
+        return { success: true };
       case 'ceoAdjustTarget':
         await ceoAdjustTarget(params.planId as string, params.newTarget as number, params.reason as string);
-        return true;
+        return { success: true };
       default:
-        return false;
+        return { success: false, error: `Skill "${skillFn}" không tồn tại` };
     }
-  } catch {
-    return false;
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
   }
 }
 
@@ -377,8 +383,8 @@ export async function runWorkflow(
 
   for (const proposal of approvedOnes) {
     for (const action of proposal.actions) {
-      const success = await executeAction(action.skillFn, action.params);
-      if (success) {
+      const result = await executeAction(action.skillFn, action.params);
+      if (result.success) {
         executed++;
         onProgress([
           chatMsg(proposal.agentRole, `  [V] ${action.description}`),
@@ -386,7 +392,7 @@ export async function runWorkflow(
       } else {
         failed++;
         onProgress([
-          chatMsg(proposal.agentRole, `  [X] THẤT BẠI: ${action.description}`),
+          chatMsg(proposal.agentRole, `  [X] THẤT BẠI: ${action.description}${result.error ? ` — ${result.error}` : ''}`),
         ]);
       }
       addEvent(run, 'execution', proposal.agentRole, action.description, 'action_executed');

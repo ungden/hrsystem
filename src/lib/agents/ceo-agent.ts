@@ -1,4 +1,5 @@
-import { BusinessTarget, AgentMessage, QuarterPeriod } from '../agent-types';
+import { BusinessTarget, AgentMessage, ChannelAnalysis, QuarterPeriod } from '../agent-types';
+import { MarketResearchReport } from './market-research-agent';
 import { getEmployees, getEmployeeCareers, getMasterPlans, getMonthlyPnL, getDeals, getPerformanceRatings, getTasksWithActuals, type TaskWithActual } from '@/lib/supabase-data';
 
 // Quarter → month labels in monthly_pnl (T1, T2, ...)
@@ -17,7 +18,13 @@ const quarterMonthNumbers: Record<string, number[]> = {
   Q4: [10, 11, 12],
 };
 
-export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise<{
+/** Market intelligence gathered in Phase 1, informing CEO decisions */
+export interface MarketIntelligence {
+  marketResearch: MarketResearchReport;
+  channelAnalysis: ChannelAnalysis[];
+}
+
+export async function runCEOAgent(year: number, quarter: QuarterPeriod, intel?: MarketIntelligence): Promise<{
   targets: BusinessTarget[];
   messages: AgentMessage[];
 }> {
@@ -167,13 +174,32 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
     },
   ];
 
+  // ---- Market Intelligence Context (if available from Phase 1) ----
+  let marketContext = '';
+  if (intel) {
+    const { marketResearch: mr, channelAnalysis: ch } = intel;
+    const highMargin = ch.filter(c => c.margin_pct >= 35);
+    const lowMargin = ch.filter(c => c.margin_pct < 25);
+    const topCompetitor = mr.competitorAnalysis[0];
+    const urgentTrends = mr.trendAlerts.filter(t => t.urgency === 'act_now');
+
+    marketContext = ` | THỊ TRƯỜNG: Graphic tees VN ~${(mr.marketOverview.totalMarketSize / 1e12).toFixed(1)} nghìn tỷ, Teeworld chiếm ${mr.marketOverview.teeworldMarketShare.toFixed(2)}%. ` +
+      `Kênh margin cao: ${highMargin.map(c => `${c.channel} (${c.margin_pct}%)`).join(', ')}. ` +
+      `${lowMargin.length > 0 ? `Kênh lỗ/margin thấp: ${lowMargin.map(c => `${c.channel} (${c.margin_pct}%)`).join(', ')}. ` : ''}` +
+      `Đối thủ lớn nhất: ${topCompetitor?.name || 'N/A'} (${topCompetitor ? (topCompetitor.revenue / 1e9).toFixed(0) + ' tỷ' : '?'}). ` +
+      `${urgentTrends.length} trend cần hành động ngay.`;
+  }
+
   const messages: AgentMessage[] = [
     {
       id: 'msg-ceo-1',
       agentRole: 'ceo',
       agentName: 'AI CEO',
       timestamp: new Date().toISOString(),
-      content: `Đã thiết lập 5 mục tiêu kinh doanh cho ${quarter}/${year}. Doanh thu mục tiêu: ${(revenueTarget / 1_000_000_000).toFixed(1)} tỷ VND, thực tế: ${(revenueActual / 1_000_000_000).toFixed(1)} tỷ VND. Chi phí nhân sự ${(totalSalary / 1_000_000_000).toFixed(1)} tỷ. Đội ngũ ${activeEmployees.length} nhân sự trên ${departments.length} phòng ban. Task completion: ${qualityActual}% (${doneTasks}/${totalTasks} tasks). KPI thực tế từ submissions: ${kpiAchievementPct}% (${kpiTasks.length} tasks có KPI). Deals trong quý: ${growthActual}.`,
+      content: `[${quarter}/${year}] 5 mục tiêu KD. DT: ${(revenueTarget / 1e9).toFixed(1)} tỷ (thực: ${(revenueActual / 1e9).toFixed(1)} tỷ). ` +
+        `NS: ${activeEmployees.length} NV / ${departments.length} PB, lương ${(totalSalary / 1e9).toFixed(1)} tỷ. ` +
+        `Tasks: ${qualityActual}% (${doneTasks}/${totalTasks}). KPI submissions: ${kpiAchievementPct}% (${kpiTasks.length} tasks). ` +
+        `Deals: ${growthActual}.${marketContext}`,
       type: 'decision',
     },
     {
@@ -182,8 +208,9 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       agentName: 'AI CEO',
       timestamp: new Date().toISOString(),
       content: targets.filter(t => t.status === 'behind' || t.status === 'at_risk').length > 0
-        ? `Cảnh báo: ${targets.filter(t => t.status === 'behind' || t.status === 'at_risk').map(t => t.name).join(', ')} đang cần chú ý. Yêu cầu HR Director và các trưởng phòng phân bổ lại nguồn lực.`
-        : `Tất cả mục tiêu đang trong tầm kiểm soát. Tiếp tục duy trì hiệu suất hiện tại.`,
+        ? `CẢNH BÁO: ${targets.filter(t => t.status === 'behind' || t.status === 'at_risk').map(t => `${t.name} (${Math.round(t.currentValue / t.targetValue * 100)}%)`).join(', ')} đang cần chú ý. ` +
+          `${intel ? `Dựa trên data thị trường, tập trung nguồn lực vào kênh margin cao (Website/FB). Giảm phụ thuộc sàn TMĐT.` : 'Yêu cầu HR Director và các trưởng phòng phân bổ lại nguồn lực.'}`
+        : `Tất cả mục tiêu đang trong tầm kiểm soát. ${intel ? 'Thị trường ủng hộ chiến lược D2C hiện tại.' : 'Tiếp tục duy trì hiệu suất.'}`,
       type: targets.some(t => t.status === 'behind') ? 'alert' : 'analysis',
     },
   ];

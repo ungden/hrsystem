@@ -434,6 +434,113 @@ export function generateCollectionProposal(state: AgentCoordinationState, strate
   };
 }
 
+// ============ MARKET RESEARCH PROPOSAL ============
+
+export function generateMarketResearchProposal(state: AgentCoordinationState, strategy: CEOStrategy): AgentProposal {
+  const { marketResearch } = state;
+  if (!marketResearch) {
+    return {
+      id: genId('MR'),
+      agentRole: 'market_research',
+      title: 'Nghiên cứu Thị trường',
+      summary: 'Chưa có dữ liệu nghiên cứu thị trường.',
+      metrics: [],
+      actions: [],
+      estimatedCost: 0,
+      estimatedImpact: 'N/A',
+      status: 'submitted',
+    };
+  }
+
+  const { marketOverview, competitorAnalysis, opportunities, threats, trendAlerts } = marketResearch;
+  const highThreats = threats.filter(t => t.severity === 'high' || t.severity === 'critical');
+  const actNowTrends = trendAlerts.filter(t => t.urgency === 'act_now');
+  const totalOpportunityRevenue = opportunities.reduce((s, o) => s + o.potentialRevenue, 0);
+
+  const actions: ProposalAction[] = [];
+
+  // Recommend acting on urgent trends
+  actNowTrends.forEach(trend => {
+    actions.push({
+      skillFn: 'ceoAdjustTarget',
+      params: { planId: 'market-action', newTarget: 0, reason: trend.recommendation },
+      description: `Hành động ngay: ${trend.trend.substring(0, 60)}...`,
+    });
+  });
+
+  return {
+    id: genId('MR'),
+    agentRole: 'market_research',
+    title: 'Báo cáo Thị trường & Cơ hội Q2/2026',
+    summary: `Thị trường: ${marketOverview.totalMarketSize > 0 ? formatCurrency(marketOverview.totalMarketSize) + 'đ' : 'đang phân tích'}. ` +
+      `Teeworld chiếm ${marketOverview.teeworldMarketShare.toFixed(2)}% — ${marketOverview.positionVsCompetitors}. ` +
+      `${opportunities.length} cơ hội (${formatCurrency(totalOpportunityRevenue)}đ potential). ` +
+      `${highThreats.length} mối đe dọa cao. ${actNowTrends.length} trend cần hành động NGAY.`,
+    metrics: [
+      { name: 'Thị phần Teeworld', current: Math.round(marketOverview.teeworldMarketShare * 100) / 100, target: 1, unit: '%' },
+      { name: 'Cơ hội DT tiềm năng', current: totalOpportunityRevenue, target: totalOpportunityRevenue, unit: 'VND' },
+      { name: 'Đối thủ theo dõi', current: competitorAnalysis.length, target: competitorAnalysis.length, unit: 'đối thủ' },
+      { name: 'Mối đe dọa cao', current: highThreats.length, target: 0, unit: 'threats' },
+    ],
+    actions,
+    estimatedCost: 0, // Research doesn't cost, it informs
+    estimatedImpact: `Unlock ${formatCurrency(totalOpportunityRevenue)}đ cơ hội DT tiềm năng, giảm ${highThreats.length} rủi ro thị trường`,
+    status: 'submitted',
+  };
+}
+
+// ============ STRATEGY ADVISOR PROPOSAL ============
+
+export function generateStrategyProposal(state: AgentCoordinationState, strategy: CEOStrategy): AgentProposal {
+  const { strategyReport } = state;
+  if (!strategyReport) {
+    return {
+      id: genId('STR'),
+      agentRole: 'strategy',
+      title: 'Tư vấn Chiến lược',
+      summary: 'Chưa có báo cáo chiến lược.',
+      metrics: [],
+      actions: [],
+      estimatedCost: 0,
+      estimatedImpact: 'N/A',
+      status: 'submitted',
+    };
+  }
+
+  const { strategicAssessment, criticalDecisions, blindSpots, quarterPriorities, ceoChallenge } = strategyReport;
+  const highImpactDecisions = criticalDecisions.filter(d => d.impact === 'high');
+
+  const actions: ProposalAction[] = [];
+
+  // Top priority actions from quarter priorities
+  quarterPriorities.slice(0, 3).forEach(p => {
+    actions.push({
+      skillFn: 'ceoAdjustTarget',
+      params: { planId: `strategy-p${p.rank}`, newTarget: 0, reason: `${p.title}: ${p.why}` },
+      description: `Ưu tiên #${p.rank}: ${p.title} (${p.owner})`,
+    });
+  });
+
+  return {
+    id: genId('STR'),
+    agentRole: 'strategy',
+    title: 'Tư vấn Chiến lược CEO — Thẳng thắn',
+    summary: `Đánh giá tổng thể: ${strategicAssessment.overallHealth.toUpperCase()} (${strategicAssessment.score}/100). ` +
+      `Điểm mạnh: ${strategicAssessment.topStrength}. Điểm yếu: ${strategicAssessment.topWeakness}. ` +
+      `${blindSpots.length} blind spots CEO cần biết. ${highImpactDecisions.length} quyết định quan trọng cần ra ngay.`,
+    metrics: [
+      { name: 'Sức khỏe chiến lược', current: strategicAssessment.score, target: 80, unit: '/100' },
+      { name: 'Blind spots', current: blindSpots.length, target: 0, unit: 'vấn đề' },
+      { name: 'Quyết định cần ra', current: highImpactDecisions.length, target: 0, unit: 'QĐ' },
+      { name: 'Ưu tiên quý', current: quarterPriorities.length, target: quarterPriorities.length, unit: 'items' },
+    ],
+    actions,
+    estimatedCost: 0,
+    estimatedImpact: `CEO CHALLENGE: ${ceoChallenge.substring(0, 100)}...`,
+    status: 'submitted',
+  };
+}
+
 // ============ GENERATE ALL PROPOSALS ============
 
 export function generateAllProposals(state: AgentCoordinationState, strategy: CEOStrategy): AgentProposal[] {
@@ -445,5 +552,7 @@ export function generateAllProposals(state: AgentCoordinationState, strategy: CE
     generateChannelProposal(state, strategy),
     generateInventoryProposal(state, strategy),
     generateCollectionProposal(state, strategy),
+    generateMarketResearchProposal(state, strategy),
+    generateStrategyProposal(state, strategy),
   ];
 }

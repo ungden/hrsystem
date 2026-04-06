@@ -100,7 +100,7 @@ export async function generateBalanceSheet(incomeStatements?: IncomeStatementMon
     getPayables(),
     getPayrolls(),
     getInventory(),
-    getFinanceSettings().catch(() => null),
+    getFinanceSettings().catch((e) => { console.warn('[Finance] Không load được cài đặt tài chính:', e.message); return null; }),
     incomeStatements ? Promise.resolve(null) : getMonthlyPnL(),
   ]);
 
@@ -167,7 +167,7 @@ export async function generateBalanceSheet(incomeStatements?: IncomeStatementMon
 
 export async function generateCashFlows(incomeStatements?: IncomeStatementMonth[]): Promise<CashFlowMonth[]> {
   const statements = incomeStatements || (await generateIncomeStatements());
-  const financeSettings = await getFinanceSettings().catch(() => null);
+  const financeSettings = await getFinanceSettings().catch((e) => { console.warn('[Finance] Không load được cài đặt tài chính cho cash flow:', e.message); return null; });
   const collectionRate = (financeSettings?.collection_rate || 0.9) as number;
 
   let soDu = 800_000_000; // Starting cash: 800M VND
@@ -318,7 +318,7 @@ export async function generateDepartmentDetails(
 // ============ BUSINESS MILESTONES ============
 
 export async function generateMilestones(): Promise<BusinessMilestone[]> {
-  const masterPlans = await getMasterPlans().catch(() => []);
+  const masterPlans = await getMasterPlans().catch((e) => { console.warn('[Finance] Không load được master plans cho milestones:', e.message); return []; });
 
   if (masterPlans && masterPlans.length > 0) {
     return masterPlans.map((plan: Record<string, string | number>, idx: number) => {

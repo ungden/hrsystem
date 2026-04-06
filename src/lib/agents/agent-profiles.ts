@@ -81,9 +81,29 @@ export const agentProfiles: Record<AgentRole, AgentProfile> = {
     textColor: 'text-fuchsia-700',
     description: 'Quản lý 12 BST/năm, AI design workflow, trend & performance',
   },
+  market_research: {
+    role: 'market_research',
+    name: 'AI Market Research',
+    title: 'Nghiên cứu Thị trường',
+    avatar: 'MR',
+    color: 'bg-gradient-to-br from-sky-500 to-blue-600',
+    bgColor: 'bg-sky-50',
+    textColor: 'text-sky-700',
+    description: 'Phân tích thị trường, đối thủ, trends, cơ hội & rủi ro. Đưa data từ bên ngoài vào.',
+  },
+  strategy: {
+    role: 'strategy',
+    name: 'AI Strategy Advisor',
+    title: 'Cố vấn Chiến lược',
+    avatar: 'STR',
+    color: 'bg-gradient-to-br from-red-600 to-rose-700',
+    bgColor: 'bg-red-50',
+    textColor: 'text-red-700',
+    description: 'Chiến lược gia cấp cao. Challenge CEO, tìm blind spots, đề xuất pivots. Không tô hồng.',
+  },
 };
 
-export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach', 'channel_optimizer', 'inventory_planner', 'collection_director'];
+export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach', 'channel_optimizer', 'inventory_planner', 'collection_director', 'market_research', 'strategy'];
 
 export function getAgentProfile(role: AgentRole): AgentProfile {
   return agentProfiles[role];

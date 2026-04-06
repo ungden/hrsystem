@@ -33,6 +33,9 @@ export default function ActivityLogPage() {
     finance: 'CFO',
     dept_manager: 'Trưởng phòng',
     performance_coach: 'Coach',
+    channel_optimizer: 'Channel Optimizer',
+    inventory_planner: 'Inventory Planner',
+    collection_director: 'Collection Director',
   };
 
   const typeLabels: Record<AgentMessage['type'], string> = {

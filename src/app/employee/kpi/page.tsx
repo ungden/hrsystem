@@ -36,15 +36,11 @@ export default function MyKPIPage() {
     load();
   }, [selectedEmpId]);
 
-  if (loading) {
-    return <div className="p-6 flex items-center justify-center min-h-[400px]"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>;
-  }
-
+  // All hooks must be called before any early return
   const done = tasks.filter(t => t.status === 'done').length;
   const rate = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
   const tasksWithKPI = tasks.filter(t => t.kpi_metric);
 
-  // Overall KPI achievement from task submissions
   const kpiAchievement = useMemo(() => {
     let totalTarget = 0, totalActual = 0;
     tasksWithKPI.forEach(t => {
@@ -57,14 +53,20 @@ export default function MyKPIPage() {
     return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
   }, [tasks]);
 
-  // Group by month
-  const byMonth = new Map<number, typeof tasks>();
-  tasks.forEach(t => {
-    const m = t.month_number || 0;
-    const arr = byMonth.get(m) || [];
-    arr.push(t);
-    byMonth.set(m, arr);
-  });
+  const byMonth = useMemo(() => {
+    const map = new Map<number, TaskWithActual[]>();
+    tasks.forEach(t => {
+      const m = t.month_number || 0;
+      const arr = map.get(m) || [];
+      arr.push(t);
+      map.set(m, arr);
+    });
+    return map;
+  }, [tasks]);
+
+  if (loading) {
+    return <div className="p-6 flex items-center justify-center min-h-[400px]"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>;
+  }
 
   return (
     <div className="p-4 sm:p-6">

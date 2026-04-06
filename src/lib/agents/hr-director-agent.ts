@@ -30,10 +30,10 @@ export async function runHRDirectorAgent(targets: BusinessTarget[]): Promise<{
 
   // Get revenue weights from finance_settings or use defaults
   const defaultWeights: Record<string, Record<string, number>> = {
-    revenue: { Sales: 0.55, Marketing: 0.45, 'Van hanh': 0, 'Ke toan': 0, 'Ban Giam doc': 0 },
-    growth: { Marketing: 0.50, Sales: 0.35, 'Van hanh': 0.05, 'Ke toan': 0.05, 'Ban Giam doc': 0.05 },
-    efficiency: { 'Van hanh': 0.40, 'Ke toan': 0.25, Sales: 0.15, Marketing: 0.15, 'Ban Giam doc': 0.05 },
-    quality: { Sales: 0.30, 'Van hanh': 0.30, Marketing: 0.20, 'Ke toan': 0.10, 'Ban Giam doc': 0.10 },
+    revenue: { Sales: 0.55, Marketing: 0.45, 'Vận hành': 0, 'Kế toán': 0, 'Ban Giám đốc': 0 },
+    growth: { Marketing: 0.50, Sales: 0.35, 'Vận hành': 0.05, 'Kế toán': 0.05, 'Ban Giám đốc': 0.05 },
+    efficiency: { 'Vận hành': 0.40, 'Kế toán': 0.25, Sales: 0.15, Marketing: 0.15, 'Ban Giám đốc': 0.05 },
+    quality: { Sales: 0.30, 'Vận hành': 0.30, Marketing: 0.20, 'Kế toán': 0.10, 'Ban Giám đốc': 0.10 },
   };
 
   // Use dept_revenue_weights from finance_settings for revenue category if available
@@ -138,7 +138,7 @@ export async function runHRDirectorAgent(targets: BusinessTarget[]): Promise<{
       agentRole: 'hr_director',
       agentName: 'AI HR Director',
       timestamp: new Date().toISOString(),
-      content: `Teeworld: Doanh thu thuc te tu Sales (Shopee+B2B): ${(salesRev / 1_000_000_000).toFixed(1)} ty (${salesPct}%) & Marketing (Web+FB+TikTok): ${(mktRev / 1_000_000_000).toFixed(1)} ty (${mktPct}%). Van hanh, Ke toan, Ban GD la cost centers -- danh gia theo hieu suat & chat luong, khong theo doanh thu.`,
+      content: `Teeworld: Doanh thu thực tế từ Sales (Shopee+B2B): ${(salesRev / 1_000_000_000).toFixed(1)} tỷ (${salesPct}%) & Marketing (Web+FB+TikTok): ${(mktRev / 1_000_000_000).toFixed(1)} tỷ (${mktPct}%). Vận hành, Kế toán, Ban GĐ là cost centers -- đánh giá theo hiệu suất & chất lượng, không theo doanh thu.`,
       type: 'decision',
     },
     {
@@ -146,7 +146,7 @@ export async function runHRDirectorAgent(targets: BusinessTarget[]): Promise<{
       agentRole: 'hr_director',
       agentName: 'AI HR Director',
       timestamp: new Date().toISOString(),
-      content: `Da phan bo ${targets.length} muc tieu cho ${departments.length} phong ban voi du lieu thuc. KPI trung binh: ${departments.map(d => `${d}: ${deptKPI[d] || 0}%`).join(', ')}. Task completion: ${departments.map(d => { const s = deptTaskStats[d]; return s ? `${d}: ${s.total > 0 ? Math.round(s.done / s.total * 100) : 0}%` : `${d}: 0%`; }).join(', ')}.`,
+      content: `Đã phân bổ ${targets.length} mục tiêu cho ${departments.length} phòng ban với dữ liệu thực. KPI trung bình: ${departments.map(d => `${d}: ${deptKPI[d] || 0}%`).join(', ')}. Task completion: ${departments.map(d => { const s = deptTaskStats[d]; return s ? `${d}: ${s.total > 0 ? Math.round(s.done / s.total * 100) : 0}%` : `${d}: 0%`; }).join(', ')}.`,
       type: 'analysis',
     },
   ];

@@ -57,6 +57,7 @@ const menuItems: MenuItem[] = [
       { label: "Bảng lương", href: "/admin/bang-luong", icon: Receipt },
       { label: "Bảng tính thưởng", href: "/admin/bang-thuong", icon: Gift },
       { label: "KH vs Thực tế", href: "/admin/ke-hoach-thuc-te", icon: BarChart3 },
+      { label: "Bảng tổng hợp", href: "/admin/bang-tong-hop", icon: FileSpreadsheet },
       { label: "Duyệt báo cáo", href: "/admin/duyet-bao-cao", icon: ClipboardCheck },
       { label: "Mục tiêu kinh doanh", href: "/admin/muc-tieu", icon: Target },
       { label: "Quản lý chi phí", href: "/admin/chi-phi", icon: Wallet },

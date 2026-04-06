@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, Terminal } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Terminal, Play } from 'lucide-react';
 import { ChatMessage, AgentCoordinationState } from '@/lib/agent-types';
 import { agentProfiles } from '@/lib/agents/agent-profiles';
-import { processUserChat } from '@/lib/agents/chat-engine';
+import { processUserChat, processWorkflowCommand } from '@/lib/agents/chat-engine';
 import AgentAvatar from './AgentAvatar';
 
 interface AgentChatPanelProps {
@@ -15,20 +15,77 @@ interface AgentChatPanelProps {
 export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelProps) {
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const stateRef = useRef(state);
 
-  const scrollToBottom = () => {
+  // Keep stateRef current for workflow callbacks
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  useEffect(() => { scrollToBottom(); }, [state.chatHistory]);
+  useEffect(() => { scrollToBottom(); }, [state.chatHistory, scrollToBottom]);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const handleSend = () => {
+  const handleWorkflow = useCallback(async () => {
+    if (isWorkflowRunning) return;
+    setIsWorkflowRunning(true);
+    setIsThinking(true);
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      senderName: 'Bạn',
+      content: '/workflow',
+      timestamp: new Date().toISOString(),
+    };
+
+    const currentHistory = [...stateRef.current.chatHistory, userMsg];
+    onStateUpdate({ ...stateRef.current, chatHistory: currentHistory });
+
+    try {
+      let accumulatedMessages = [...currentHistory];
+
+      const newState = await processWorkflowCommand(
+        stateRef.current,
+        (progressMsgs) => {
+          accumulatedMessages = [...accumulatedMessages, ...progressMsgs];
+          onStateUpdate({ ...stateRef.current, chatHistory: accumulatedMessages });
+        },
+      );
+
+      // Final state update with workflowRun
+      onStateUpdate({ ...newState, chatHistory: accumulatedMessages });
+    } catch (err) {
+      const errMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        sender: 'ceo',
+        senderName: 'AI CEO',
+        content: `LỖI: Không thể chạy workflow. ${err instanceof Error ? err.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      };
+      onStateUpdate({ ...stateRef.current, chatHistory: [...stateRef.current.chatHistory, errMsg] });
+    }
+
+    setIsWorkflowRunning(false);
+    setIsThinking(false);
+  }, [isWorkflowRunning, onStateUpdate]);
+
+  const handleSend = useCallback(() => {
     if (!input.trim() || isThinking) return;
+
+    // Check if this is a workflow command
+    const trimmedLower = input.trim().toLowerCase();
+    if (trimmedLower === '/workflow' || trimmedLower === 'workflow' || trimmedLower === 'van hanh' || trimmedLower === 'khoi chay') {
+      setInput('');
+      handleWorkflow();
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -43,23 +100,23 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
 
     const newHistory = [...state.chatHistory, userMsg];
     onStateUpdate({ ...state, chatHistory: newHistory });
+    const savedInput = input.trim();
     setInput('');
     setIsThinking(true);
 
     setTimeout(async () => {
-      const responses = await processUserChat(input.trim(), state);
+      const responses = await processUserChat(savedInput, state);
       const updatedHistory = [...newHistory, ...responses];
       onStateUpdate({ ...state, chatHistory: updatedHistory });
       setIsThinking(false);
     }, 300 + Math.random() * 500);
-  };
+  }, [input, isThinking, state, onStateUpdate, handleWorkflow]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-    // Arrow up/down for command history
     if (e.key === 'ArrowUp' && history.length > 0) {
       e.preventDefault();
       const newIdx = Math.min(historyIdx + 1, history.length - 1);
@@ -74,14 +131,17 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
   };
 
   const quickCommands = [
+    { label: '/workflow', desc: 'Vận hành', icon: true },
     { label: '/overview', desc: 'Tổng quan' },
     { label: '/targets', desc: 'Mục tiêu' },
     { label: '/health', desc: 'Tài chính' },
     { label: '/risk', desc: 'Rủi ro' },
     { label: '/top', desc: 'Top NV' },
-    { label: '/bonus', desc: 'Thưởng' },
     { label: '/help', desc: 'Trợ giúp' },
   ];
+
+  // Detect workflow phase lines for styling
+  const isPhaseHeader = (content: string) => content.includes('═══════');
 
   return (
     <div className="flex flex-col h-[700px] bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
@@ -89,6 +149,12 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
       <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 border-b border-slate-700">
         <Terminal size={14} className="text-emerald-400" />
         <span className="text-xs font-mono text-emerald-400">AI Agents Terminal</span>
+        {isWorkflowRunning && (
+          <span className="text-[10px] font-mono text-amber-400 animate-pulse ml-2">WORKFLOW RUNNING...</span>
+        )}
+        {state.workflowRun?.phase === 'complete' && (
+          <span className="text-[10px] font-mono text-emerald-400 ml-2">WORKFLOW COMPLETE</span>
+        )}
         <span className="text-[10px] text-slate-500 ml-auto">Gõ /help để xem lệnh</span>
       </div>
 
@@ -97,9 +163,22 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
         {quickCommands.map(cmd => (
           <button
             key={cmd.label}
-            onClick={() => { setInput(cmd.label); inputRef.current?.focus(); }}
-            className="text-[10px] font-mono bg-slate-700/50 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded transition-colors flex-shrink-0"
+            onClick={() => {
+              if (cmd.label === '/workflow') {
+                handleWorkflow();
+              } else {
+                setInput(cmd.label);
+                inputRef.current?.focus();
+              }
+            }}
+            disabled={isThinking}
+            className={`text-[10px] font-mono px-2 py-1 rounded transition-colors flex-shrink-0 flex items-center gap-1 ${
+              cmd.icon
+                ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/30'
+                : 'bg-slate-700/50 hover:bg-slate-600 text-slate-300'
+            } disabled:opacity-50`}
           >
+            {cmd.icon && <Play size={8} />}
             {cmd.label}
           </button>
         ))}
@@ -112,8 +191,9 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
             <div className="text-emerald-400 text-sm mb-2">Welcome to AI Agents Terminal</div>
             <div className="text-slate-500 text-xs space-y-1">
               <p>Gõ lệnh hoặc câu hỏi tự nhiên bằng tiếng Việt</p>
-              <p>VD: /overview, /dept CNTT, /emp Hoang Thai Son, /salary Bui Van Duong</p>
-              <p className="text-slate-600 mt-3">Gõ <span className="text-emerald-400">/help</span> để xem đầy đủ lệnh</p>
+              <p>VD: /overview, /dept CNTT, /emp Hoàng Thái Sơn</p>
+              <p className="text-amber-400 mt-3">Gõ <span className="text-amber-300 font-bold">/workflow</span> để khởi chạy bộ máy vận hành</p>
+              <p className="text-slate-600">Gõ <span className="text-emerald-400">/help</span> để xem đầy đủ lệnh</p>
             </div>
           </div>
         )}
@@ -130,7 +210,19 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
                 <AgentAvatar role={msg.sender} size="sm" />
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] text-slate-500">{agentProfiles[msg.sender]?.name || msg.senderName}</span>
-                  <pre className="text-emerald-300/90 whitespace-pre-wrap text-[12px] leading-relaxed mt-0.5 overflow-x-auto">{msg.content}</pre>
+                  <pre className={`whitespace-pre-wrap text-[12px] leading-relaxed mt-0.5 overflow-x-auto ${
+                    isPhaseHeader(msg.content)
+                      ? 'text-amber-400 font-bold'
+                      : msg.content.includes('[V] DUYET') || msg.content.includes('[V]')
+                        ? 'text-emerald-300/90'
+                        : msg.content.includes('[X] TU CHOI') || msg.content.includes('[X]')
+                          ? 'text-red-400/90'
+                          : msg.content.includes('[?] CAN THAO LUAN')
+                            ? 'text-yellow-300/90'
+                            : msg.content.includes('CEO hoi') || msg.content.includes('tra loi')
+                              ? 'text-cyan-300/90'
+                              : 'text-emerald-300/90'
+                  }`}>{msg.content}</pre>
                 </div>
               </div>
             )}
@@ -140,7 +232,7 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
         {isThinking && (
           <div className="flex items-center gap-2 text-slate-500">
             <span className="animate-pulse">_</span>
-            <span className="text-[11px]">Processing...</span>
+            <span className="text-[11px]">{isWorkflowRunning ? 'Workflow đang chạy...' : 'Processing...'}</span>
           </div>
         )}
 
@@ -159,6 +251,7 @@ export default function AgentChatPanel({ state, onStateUpdate }: AgentChatPanelP
             onKeyDown={handleKeyDown}
             placeholder="Gõ lệnh hoặc câu hỏi... (↑↓ xem history)"
             className="flex-1 bg-transparent border-none text-slate-200 font-mono text-sm placeholder:text-slate-600 focus:outline-none"
+            disabled={isWorkflowRunning}
           />
           <button
             onClick={handleSend}

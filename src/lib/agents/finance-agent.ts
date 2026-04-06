@@ -30,10 +30,10 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
   const bhtnRate = financeSettings?.insurance_rate_bhtn ?? 0.01;
   const totalInsuranceRate = bhxhRate + bhytRate + bhtnRate;
   const bonusTiers: { min_score: number; label: string; rate: number }[] = financeSettings?.bonus_tiers ?? [
-    { min_score: 90, label: 'Xuat sac', rate: 0.25 },
-    { min_score: 75, label: 'Tot', rate: 0.15 },
-    { min_score: 55, label: 'Kha', rate: 0.10 },
-    { min_score: 0, label: 'Trung binh', rate: 0.05 },
+    { min_score: 90, label: 'Xuất sắc', rate: 0.25 },
+    { min_score: 75, label: 'Tốt', rate: 0.15 },
+    { min_score: 55, label: 'Khá', rate: 0.10 },
+    { min_score: 0, label: 'Trung bình', rate: 0.05 },
   ];
 
   // Calculate per-employee salary projections
@@ -80,9 +80,9 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
     }
 
     const bonusBreakdown = [
-      { source: 'KPI hoan thanh', amount: Math.round(projectedBonus * 0.6) },
-      { source: 'Thuong phong ban', amount: Math.round(projectedBonus * 0.25) },
-      { source: 'Thuong cong ty', amount: Math.round(projectedBonus * 0.15) },
+      { source: 'KPI hoàn thành', amount: Math.round(projectedBonus * 0.6) },
+      { source: 'Thưởng phòng ban', amount: Math.round(projectedBonus * 0.25) },
+      { source: 'Thưởng công ty', amount: Math.round(projectedBonus * 0.15) },
     ];
 
     return {
@@ -117,7 +117,7 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
   const totalCost = costProjections.reduce((s, c) => s + c.totalCost, 0);
   const totalBonus = costProjections.reduce((s, c) => s + c.projectedBonusPool, 0);
   const totalBase = costProjections.reduce((s, c) => s + c.totalBaseSalary, 0);
-  const payrollSource = payrolls.length > 0 ? `bang luong thang ${currentMonth}` : 'du lieu career + finance_settings';
+  const payrollSource = payrolls.length > 0 ? `bảng lương tháng ${currentMonth}` : 'dữ liệu career + finance_settings';
 
   const messages: AgentMessage[] = [
     {
@@ -125,7 +125,7 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
       agentRole: 'finance',
       agentName: 'AI CFO',
       timestamp: new Date().toISOString(),
-      content: `Tong chi phi nhan su du kien: ${formatCurrency(totalCost)} VND/thang (nguon: ${payrollSource}). Trong do: Luong co ban ${formatCurrency(totalBase)} (${totalCost > 0 ? Math.round(totalBase/totalCost*100) : 0}%), Thuong du kien ${formatCurrency(totalBonus)} (${totalCost > 0 ? Math.round(totalBonus/totalCost*100) : 0}%), Phu cap + BH chiem phan con lai.`,
+      content: `Tổng chi phí nhân sự dự kiến: ${formatCurrency(totalCost)} VND/tháng (nguồn: ${payrollSource}). Trong đó: Lương cơ bản ${formatCurrency(totalBase)} (${totalCost > 0 ? Math.round(totalBase/totalCost*100) : 0}%), Thưởng dự kiến ${formatCurrency(totalBonus)} (${totalCost > 0 ? Math.round(totalBonus/totalCost*100) : 0}%), Phụ cấp + BH chiếm phần còn lại.`,
       type: 'analysis',
     },
     {
@@ -133,7 +133,7 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
       agentRole: 'finance',
       agentName: 'AI CFO',
       timestamp: new Date().toISOString(),
-      content: `Chi phi binh quan/nhan su: ${formatCurrency(activeEmployees.length > 0 ? Math.round(totalCost / activeEmployees.length) : 0)} VND/thang. ${costProjections.sort((a, b) => b.totalCost - a.totalCost)[0]?.department || 'N/A'} co chi phi cao nhat voi ${costProjections[0]?.headcount || 0} nhan su. BH: BHXH ${bhxhRate*100}% + BHYT ${bhytRate*100}% + BHTN ${bhtnRate*100}% = ${totalInsuranceRate*100}%.`,
+      content: `Chi phí bình quân/nhân sự: ${formatCurrency(activeEmployees.length > 0 ? Math.round(totalCost / activeEmployees.length) : 0)} VND/tháng. ${costProjections.sort((a, b) => b.totalCost - a.totalCost)[0]?.department || 'N/A'} có chi phí cao nhất với ${costProjections[0]?.headcount || 0} nhân sự. BH: BHXH ${bhxhRate*100}% + BHYT ${bhytRate*100}% + BHTN ${bhtnRate*100}% = ${totalInsuranceRate*100}%.`,
       type: 'analysis',
     },
   ];

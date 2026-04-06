@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Target, DollarSign, TrendingUp, Users, PiggyBank, ArrowRight, ShoppingCart } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, Users, PiggyBank, ArrowRight, ShoppingCart, BarChart3, CheckCircle2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import AgentDashboardGrid from '@/components/agents/AgentDashboardGrid';
 import AgentMessageCard from '@/components/agents/AgentMessageCard';
-import { getDashboardData } from '@/lib/supabase-data';
+import { getDashboardData, getTasksWithActuals, getEmployees, type TaskWithActual } from '@/lib/supabase-data';
+import { getSlugFromDept } from '@/lib/department-utils';
 import { runFullCoordination } from '@/lib/agents/coordinator';
 
 function formatVND(n: number): string {
@@ -33,6 +34,11 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState('');
 
   const [agentState, setAgentState] = useState<any>(null);
+  const [deptOverview, setDeptOverview] = useState<Array<{
+    department: string; slug: string; headcount: number;
+    totalTasks: number; completedTasks: number; completionPct: number;
+    kpiTasks: number; kpiTarget: number; kpiActual: number; kpiPct: number;
+  }>>([]);
 
   useEffect(() => {
     getDashboardData()
@@ -40,6 +46,46 @@ export default function AdminDashboardPage() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
     runFullCoordination(2026, 'Q2').then(s => setAgentState(s)).catch(() => {});
+
+    // Load KH vs TT overview per department
+    Promise.all([getTasksWithActuals(), getEmployees()]).then(([allTasks, emps]) => {
+      const activeEmps = emps.filter((e: { status: string }) => e.status === 'Đang làm việc');
+      const deptMap = new Map<string, {
+        department: string; headcount: number;
+        totalTasks: number; completedTasks: number;
+        kpiTasks: number; kpiTarget: number; kpiActual: number;
+      }>();
+
+      activeEmps.forEach((e: { department: string }) => {
+        if (!deptMap.has(e.department)) {
+          deptMap.set(e.department, { department: e.department, headcount: 0, totalTasks: 0, completedTasks: 0, kpiTasks: 0, kpiTarget: 0, kpiActual: 0 });
+        }
+        deptMap.get(e.department)!.headcount++;
+      });
+
+      (allTasks as TaskWithActual[]).forEach(t => {
+        const emp = activeEmps.find((e: { id: number; department: string }) => e.id === t.assignee_id);
+        if (!emp || !deptMap.has(emp.department)) return;
+        const d = deptMap.get(emp.department)!;
+        d.totalTasks++;
+        if (t.status === 'done') d.completedTasks++;
+        if (t.kpi_target) {
+          const tgt = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+          if (!isNaN(tgt) && tgt > 0) {
+            d.kpiTasks++;
+            d.kpiTarget += tgt;
+            d.kpiActual += t.actualTotal || 0;
+          }
+        }
+      });
+
+      setDeptOverview(Array.from(deptMap.values()).map(d => ({
+        ...d,
+        slug: getSlugFromDept(d.department),
+        completionPct: d.totalTasks > 0 ? Math.round((d.completedTasks / d.totalTasks) * 100) : 0,
+        kpiPct: d.kpiTarget > 0 ? Math.round((d.kpiActual / d.kpiTarget) * 100) : 0,
+      })).sort((a, b) => b.completionPct - a.completionPct));
+    }).catch(() => {});
   }, []);
 
   if (loading) {
@@ -133,6 +179,100 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Department Overview — KH vs TT */}
+      {deptOverview.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800">Tổng quan phòng ban — Kế hoạch vs Thực tế</h2>
+            <div className="flex gap-2">
+              <Link href="/admin/tong-quan-okr" className="text-xs text-blue-600 flex items-center gap-1">OKR <ArrowRight size={12} /></Link>
+              <Link href="/admin/ke-hoach-thuc-te" className="text-xs text-blue-600 flex items-center gap-1">KH vs TT <ArrowRight size={12} /></Link>
+            </div>
+          </div>
+
+          {/* Summary row */}
+          {(() => {
+            const totals = deptOverview.reduce((s, d) => ({
+              tasks: s.tasks + d.totalTasks, done: s.done + d.completedTasks,
+              kpiTgt: s.kpiTgt + d.kpiTarget, kpiAct: s.kpiAct + d.kpiActual,
+              kpiCount: s.kpiCount + d.kpiTasks, hc: s.hc + d.headcount,
+            }), { tasks: 0, done: 0, kpiTgt: 0, kpiAct: 0, kpiCount: 0, hc: 0 });
+            const overallCompletion = totals.tasks > 0 ? Math.round((totals.done / totals.tasks) * 100) : 0;
+            const overallKPI = totals.kpiTgt > 0 ? Math.round((totals.kpiAct / totals.kpiTgt) * 100) : 0;
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-slate-800">{totals.hc}</p>
+                  <p className="text-[10px] text-slate-500">Nhân sự</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-slate-800">{totals.done}/{totals.tasks}</p>
+                  <p className="text-[10px] text-slate-500">Tasks hoàn thành</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className={`text-xl font-bold ${overallCompletion >= 50 ? 'text-green-600' : 'text-orange-600'}`}>{overallCompletion}%</p>
+                  <p className="text-[10px] text-slate-500">Tỷ lệ hoàn thành</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className={`text-xl font-bold ${overallKPI >= 70 ? 'text-green-600' : overallKPI >= 50 ? 'text-blue-600' : 'text-orange-600'}`}>{overallKPI}%</p>
+                  <p className="text-[10px] text-slate-500">KPI thực tế ({totals.kpiCount} tasks)</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Per-department breakdown */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                  <th className="pb-2 pr-3">Phòng ban</th>
+                  <th className="pb-2 pr-3 text-center">Nhân sự</th>
+                  <th className="pb-2 pr-3 text-center">Tasks</th>
+                  <th className="pb-2 pr-3">Tiến độ</th>
+                  <th className="pb-2 pr-3 text-center">KPI tasks</th>
+                  <th className="pb-2">KPI KH vs TT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deptOverview.map(d => (
+                  <tr key={d.department} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="py-2.5 pr-3">
+                      <Link href={`/admin/phong-ban/${d.slug}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                        {d.department.replace('Phòng ', '')}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-3 text-center text-sm text-slate-600">{d.headcount}</td>
+                    <td className="py-2.5 pr-3 text-center text-sm text-slate-600">{d.completedTasks}/{d.totalTasks}</td>
+                    <td className="py-2.5 pr-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${d.completionPct >= 50 ? 'bg-green-500' : d.completionPct >= 30 ? 'bg-blue-500' : 'bg-orange-500'}`} style={{ width: `${d.completionPct}%` }} />
+                        </div>
+                        <span className="text-[11px] text-slate-500 w-8">{d.completionPct}%</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 pr-3 text-center text-sm text-slate-500">{d.kpiTasks}</td>
+                    <td className="py-2.5">
+                      {d.kpiTasks > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden relative">
+                            <div className={`h-full rounded-full ${d.kpiPct >= 90 ? 'bg-green-500' : d.kpiPct >= 70 ? 'bg-blue-500' : 'bg-orange-500'}`} style={{ width: `${Math.min(d.kpiPct, 100)}%` }} />
+                          </div>
+                          <span className={`text-[11px] font-bold w-8 ${d.kpiPct >= 90 ? 'text-green-600' : d.kpiPct >= 70 ? 'text-blue-600' : 'text-orange-600'}`}>{d.kpiPct}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Deals + KPIs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

@@ -4,12 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Edit3, Save, Trash2, Upload, Link2, MessageCircle,
   Calendar, User, AlertTriangle, Loader2, FileText, Camera,
-  Send, Plus, ExternalLink, Paperclip,
+  Send, Plus, ExternalLink, Paperclip, ListChecks, Square, CheckSquare,
 } from "lucide-react";
 import {
   updateTask, deleteTask, getTaskComments, addTaskComment,
   deleteTaskComment, getAttachments, uploadTaskAttachment,
-  deleteAttachment, getEmployees,
+  deleteAttachment, getEmployees, getSubTasks, updateSubTasks,
+  type SubTask,
 } from "@/lib/supabase-data";
 import { getSelectedEmpId } from '@/lib/employee-context';
 
@@ -98,7 +99,11 @@ export default function TaskDetailModal({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<"detail" | "files" | "comments">("detail");
+  const [activeTab, setActiveTab] = useState<"detail" | "subtasks" | "files" | "comments">("detail");
+
+  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [savingSubtasks, setSavingSubtasks] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
@@ -106,6 +111,7 @@ export default function TaskDetailModal({
   useEffect(() => {
     loadComments();
     loadAttachments();
+    loadSubtasks();
   }, []);
 
   async function loadComments() {
@@ -124,6 +130,49 @@ export default function TaskDetailModal({
       })));
     } catch (e) { console.error(e); }
   }
+
+  async function loadSubtasks() {
+    try {
+      const data = await getSubTasks(task.id);
+      setSubtasks(data);
+    } catch (e) { console.error(e); }
+  }
+
+  async function addSubtask() {
+    if (!newSubtaskTitle.trim()) return;
+    const newSub: SubTask = {
+      id: `st-${Date.now()}`,
+      title: newSubtaskTitle.trim(),
+      done: false,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...subtasks, newSub];
+    setSubtasks(updated);
+    setNewSubtaskTitle("");
+    setSavingSubtasks(true);
+    try { await updateSubTasks(task.id, updated); } catch (e) { console.error(e); }
+    setSavingSubtasks(false);
+  }
+
+  async function toggleSubtask(id: string) {
+    const updated = subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s);
+    setSubtasks(updated);
+    try { await updateSubTasks(task.id, updated); } catch (e) { console.error(e); }
+  }
+
+  async function deleteSubtask(id: string) {
+    const updated = subtasks.filter(s => s.id !== id);
+    setSubtasks(updated);
+    try { await updateSubTasks(task.id, updated); } catch (e) { console.error(e); }
+  }
+
+  async function updateSubtaskAssignee(id: string, assigneeId: number | undefined) {
+    const updated = subtasks.map(s => s.id === id ? { ...s, assignee_id: assigneeId } : s);
+    setSubtasks(updated);
+    try { await updateSubTasks(task.id, updated); } catch (e) { console.error(e); }
+  }
+
+  const subtasksDone = subtasks.filter(s => s.done).length;
 
   async function handleSave() {
     setSaving(true);
@@ -262,6 +311,7 @@ export default function TaskDetailModal({
         <div className="flex border-b border-slate-100 px-5">
           {[
             { key: "detail" as const, label: "Chi tiết", icon: Edit3 },
+            { key: "subtasks" as const, label: `Việc chi tiết (${subtasks.length})`, icon: ListChecks },
             { key: "files" as const, label: `Đính kèm (${attachments.length})`, icon: Paperclip },
             { key: "comments" as const, label: `Bình luận (${comments.length})`, icon: MessageCircle },
           ].map(tab => (
@@ -373,6 +423,78 @@ export default function TaskDetailModal({
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* SUBTASKS TAB */}
+          {activeTab === "subtasks" && (
+            <div className="space-y-4">
+              {/* Progress */}
+              {subtasks.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${subtasks.length > 0 ? Math.round((subtasksDone / subtasks.length) * 100) : 0}%` }} />
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">{subtasksDone}/{subtasks.length}</span>
+                </div>
+              )}
+
+              {/* Subtask list */}
+              {subtasks.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Chưa có việc chi tiết</p>
+              ) : (
+                <div className="space-y-1">
+                  {subtasks.map(st => {
+                    const stAssignee = employees.find(e => e.id === st.assignee_id);
+                    return (
+                      <div key={st.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg group transition-colors ${st.done ? 'bg-green-50/50' : 'hover:bg-slate-50'}`}>
+                        <button onClick={() => toggleSubtask(st.id)} className="flex-shrink-0">
+                          {st.done ? (
+                            <CheckSquare size={18} className="text-green-500" />
+                          ) : (
+                            <Square size={18} className="text-slate-300 hover:text-blue-400" />
+                          )}
+                        </button>
+                        <span className={`text-sm flex-1 min-w-0 ${st.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                          {st.title}
+                        </span>
+                        <select
+                          value={st.assignee_id || 0}
+                          onChange={e => updateSubtaskAssignee(st.id, Number(e.target.value) || undefined)}
+                          className="text-[10px] border border-slate-200 rounded px-1.5 py-1 bg-white w-24 truncate opacity-60 group-hover:opacity-100"
+                        >
+                          <option value={0}>-- Giao --</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                        {stAssignee && (
+                          <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0" title={stAssignee.name}>
+                            {stAssignee.name.charAt(0)}
+                          </div>
+                        )}
+                        <button onClick={() => deleteSubtask(st.id)}
+                          className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 flex-shrink-0">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Add new subtask */}
+              <div className="flex gap-2">
+                <input
+                  value={newSubtaskTitle}
+                  onChange={e => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSubtask(); } }}
+                  placeholder="Thêm việc chi tiết..."
+                  className="flex-1 text-sm border rounded-lg px-3 py-2"
+                />
+                <button onClick={addSubtask} disabled={!newSubtaskTitle.trim() || savingSubtasks}
+                  className="flex items-center gap-1 text-sm font-medium text-white bg-blue-600 px-3 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  <Plus size={14} /> Thêm
+                </button>
               </div>
             </div>
           )}

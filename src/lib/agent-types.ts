@@ -1,6 +1,6 @@
 // ============ AI MULTI-AGENT COORDINATION SYSTEM ============
 
-export type AgentRole = 'ceo' | 'hr_director' | 'finance' | 'dept_manager' | 'performance_coach';
+export type AgentRole = 'ceo' | 'hr_director' | 'finance' | 'dept_manager' | 'performance_coach' | 'channel_optimizer' | 'inventory_planner' | 'collection_director';
 export type AgentStatus = 'idle' | 'thinking' | 'done' | 'error';
 export type QuarterPeriod = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -98,6 +98,56 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+// ============ CHANNEL OPTIMIZER ============
+export interface ChannelAnalysis {
+  channel: string;
+  revenue: number;
+  margin_pct: number;
+  revenue_share: number;
+  adSpend: number;
+  roas: number;
+  recommendation: 'increase' | 'maintain' | 'decrease' | 'optimize';
+}
+
+// ============ INVENTORY PLANNER ============
+export interface InventoryForecast {
+  month: number;
+  demandUnits: number;
+  currentStock: number;
+  reorderNeeded: boolean;
+  productionBatches: number;
+  rawMaterialNeeded: number;
+}
+
+export interface StockAlert {
+  itemName: string;
+  currentStock: number;
+  minStock: number;
+  status: 'ok' | 'low' | 'critical' | 'dead';
+  action: string;
+}
+
+// ============ COLLECTION DIRECTOR ============
+export interface CollectionPlan {
+  month: number;
+  name: string;
+  theme: string;
+  targetSKUs: number;
+  status: 'planned' | 'in_design' | 'in_production' | 'launched' | 'completed';
+  topSellers: number;
+}
+
+// ============ AGENT ACTIONS (Write operations) ============
+export interface AgentAction {
+  id: string;
+  agentRole: AgentRole;
+  actionType: string;
+  description: string;
+  timestamp: string;
+  success: boolean;
+  details?: Record<string, unknown>;
+}
+
 export interface AgentCoordinationState {
   currentQuarter: { year: number; quarter: QuarterPeriod };
   businessTargets: BusinessTarget[];
@@ -108,9 +158,17 @@ export interface AgentCoordinationState {
   messages: AgentMessage[];
   agentStatuses: Record<AgentRole, AgentStatus>;
   chatHistory: ChatMessage[];
+  actions: AgentAction[];
   // Financial statements
   financials: import('./financial-types').FinancialStatements;
   financialHealth: import('./financial-types').FinancialHealthMetrics;
   departmentDetails: import('./financial-types').DepartmentDetail[];
   milestones: import('./financial-types').BusinessMilestone[];
+  // Teeworld-specific
+  channelAnalysis: ChannelAnalysis[];
+  inventoryForecasts: InventoryForecast[];
+  stockAlerts: StockAlert[];
+  collectionPlans: CollectionPlan[];
+  // Workflow orchestration
+  workflowRun?: import('./agents/workflow-types').WorkflowRun;
 }

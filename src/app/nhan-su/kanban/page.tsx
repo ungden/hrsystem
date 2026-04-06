@@ -148,17 +148,35 @@ export default function KanbanPage() {
         </Link>
       </div>
 
+      {/* Department tabs */}
+      <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button onClick={() => { setFilterDepartment(""); setFilterEmployee(""); }}
+          className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
+            !filterDepartment ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}>
+          Tất cả ({tasks.length})
+        </button>
+        {departments.map(d => {
+          const count = tasks.filter(t => {
+            const emp = employees.find(e => e.id === t.assignee_id);
+            return emp?.department === d;
+          }).length;
+          return (
+            <button key={d} onClick={() => { setFilterDepartment(d); setFilterEmployee(""); }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
+                filterDepartment === d ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}>
+              {d} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap mb-4">
         <select value={filterMonth} onChange={e => setFilterMonth(Number(e.target.value))}
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700">
           {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>Tháng {m}</option>)}
-        </select>
-
-        <select value={filterDepartment} onChange={e => { setFilterDepartment(e.target.value); setFilterEmployee(""); }}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700">
-          <option value="">Tất cả phòng ban</option>
-          {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
 
         <select value={filterEmployee} onChange={e => setFilterEmployee(e.target.value)}

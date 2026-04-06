@@ -1,5 +1,5 @@
 import { BusinessTarget, AgentMessage, QuarterPeriod } from '../agent-types';
-import { getEmployees, getEmployeeCareers, getMasterPlans, getMonthlyPnL, getDeals, getPerformanceRatings, getTasks } from '@/lib/supabase-data';
+import { getEmployees, getEmployeeCareers, getMasterPlans, getMonthlyPnL, getDeals, getPerformanceRatings, getTasksWithActuals, type TaskWithActual } from '@/lib/supabase-data';
 
 // Quarter → month labels in monthly_pnl (T1, T2, ...)
 const quarterMonths: Record<string, string[]> = {
@@ -27,7 +27,7 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
     getMonthlyPnL(),
     getDeals(),
     getPerformanceRatings(),
-    getTasks(),
+    getTasksWithActuals(),
     getMasterPlans({ role: 'ceo', year }),
   ]);
 
@@ -68,11 +68,23 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
     : 60;
   const efficiencyActual = avgKPI;
 
-  // ---- 4. Quality: real task completion rate (done/total) ----
-  const quarterTasks = allTasks.filter((t: { month_number: number }) =>
-    monthNums.includes(t.month_number));
+  // ---- 4. Quality: real task completion rate (done/total) + KPI achievement from submissions ----
+  const quarterTasks = (allTasks as TaskWithActual[]).filter(t =>
+    monthNums.includes(t.month_number || 0));
   const totalTasks = quarterTasks.length;
-  const doneTasks = quarterTasks.filter((t: { status: string }) => t.status === 'done').length;
+  const doneTasks = quarterTasks.filter(t => t.status === 'done').length;
+
+  // KPI achievement from real submissions (KH vs TT)
+  const kpiTasks = quarterTasks.filter(t => t.kpi_target);
+  let kpiTargetSum = 0, kpiActualSum = 0;
+  kpiTasks.forEach(t => {
+    const tgt = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+    if (!isNaN(tgt) && tgt > 0) {
+      kpiTargetSum += tgt;
+      kpiActualSum += t.actualTotal || 0;
+    }
+  });
+  const kpiAchievementPct = kpiTargetSum > 0 ? Math.round((kpiActualSum / kpiTargetSum) * 100) : 0;
   const qualityPlan = masterPlans.find((p: { plan_type: string; quarter: string }) =>
     p.plan_type === 'quality' && p.quarter === quarter);
   const qualityTarget = qualityPlan?.target_value ?? 85;
@@ -113,18 +125,18 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       id: 'bt-2',
       year,
       quarter,
-      name: `Khach hang moi ${quarter}/${year}`,
+      name: `Khách hàng mới ${quarter}/${year}`,
       category: 'growth',
       targetValue: growthTarget,
       currentValue: growthActual,
-      unit: 'khach hang',
+      unit: 'khách hàng',
       status: getStatus(growthActual, growthTarget),
     },
     {
       id: 'bt-3',
       year,
       quarter,
-      name: `Hieu suat KPI trung binh`,
+      name: `Hiệu suất KPI trung bình`,
       category: 'efficiency',
       targetValue: efficiencyTarget,
       currentValue: efficiencyActual,
@@ -135,7 +147,7 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       id: 'bt-4',
       year,
       quarter,
-      name: `Ty le hoan thanh cong viec`,
+      name: `Tỷ lệ hoàn thành công việc`,
       category: 'quality',
       targetValue: qualityTarget,
       currentValue: qualityActual,
@@ -146,7 +158,7 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       id: 'bt-5',
       year,
       quarter,
-      name: `Hai long khach hang`,
+      name: `Hài lòng khách hàng`,
       category: 'quality',
       targetValue: satisfactionTarget,
       currentValue: satisfactionActual,
@@ -161,7 +173,7 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       agentRole: 'ceo',
       agentName: 'AI CEO',
       timestamp: new Date().toISOString(),
-      content: `Da thiet lap 5 muc tieu kinh doanh cho ${quarter}/${year}. Doanh thu muc tieu: ${(revenueTarget / 1_000_000_000).toFixed(1)} ty VND, thuc te: ${(revenueActual / 1_000_000_000).toFixed(1)} ty VND. Chi phi nhan su ${(totalSalary / 1_000_000_000).toFixed(1)} ty. Doi ngu ${activeEmployees.length} nhan su tren ${departments.length} phong ban. Task completion: ${qualityActual}% (${doneTasks}/${totalTasks} tasks). Deals trong quy: ${growthActual}.`,
+      content: `Đã thiết lập 5 mục tiêu kinh doanh cho ${quarter}/${year}. Doanh thu mục tiêu: ${(revenueTarget / 1_000_000_000).toFixed(1)} tỷ VND, thực tế: ${(revenueActual / 1_000_000_000).toFixed(1)} tỷ VND. Chi phí nhân sự ${(totalSalary / 1_000_000_000).toFixed(1)} tỷ. Đội ngũ ${activeEmployees.length} nhân sự trên ${departments.length} phòng ban. Task completion: ${qualityActual}% (${doneTasks}/${totalTasks} tasks). KPI thực tế từ submissions: ${kpiAchievementPct}% (${kpiTasks.length} tasks có KPI). Deals trong quý: ${growthActual}.`,
       type: 'decision',
     },
     {
@@ -170,8 +182,8 @@ export async function runCEOAgent(year: number, quarter: QuarterPeriod): Promise
       agentName: 'AI CEO',
       timestamp: new Date().toISOString(),
       content: targets.filter(t => t.status === 'behind' || t.status === 'at_risk').length > 0
-        ? `Canh bao: ${targets.filter(t => t.status === 'behind' || t.status === 'at_risk').map(t => t.name).join(', ')} dang can chu y. Yeu cau HR Director va cac truong phong phan bo lai nguon luc.`
-        : `Tat ca muc tieu dang trong tam kiem soat. Tiep tuc duy tri hieu suat hien tai.`,
+        ? `Cảnh báo: ${targets.filter(t => t.status === 'behind' || t.status === 'at_risk').map(t => t.name).join(', ')} đang cần chú ý. Yêu cầu HR Director và các trưởng phòng phân bổ lại nguồn lực.`
+        : `Tất cả mục tiêu đang trong tầm kiểm soát. Tiếp tục duy trì hiệu suất hiện tại.`,
       type: targets.some(t => t.status === 'behind') ? 'alert' : 'analysis',
     },
   ];

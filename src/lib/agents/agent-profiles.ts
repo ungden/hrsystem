@@ -51,9 +51,39 @@ export const agentProfiles: Record<AgentRole, AgentProfile> = {
     textColor: 'text-rose-700',
     description: 'Theo dõi tiến độ, cảnh báo rủi ro, đề xuất cải thiện hiệu suất',
   },
+  channel_optimizer: {
+    role: 'channel_optimizer',
+    name: 'AI Channel Optimizer',
+    title: 'Tối ưu Kênh bán hàng',
+    avatar: 'CH',
+    color: 'bg-gradient-to-br from-cyan-500 to-teal-600',
+    bgColor: 'bg-cyan-50',
+    textColor: 'text-cyan-700',
+    description: 'Phân tích 5 kênh bán (Website, FB/IG, TikTok, Shopee, B2B), ROAS, margin',
+  },
+  inventory_planner: {
+    role: 'inventory_planner',
+    name: 'AI Inventory Planner',
+    title: 'Kế hoạch Kho & Sản xuất',
+    avatar: 'KHO',
+    color: 'bg-gradient-to-br from-yellow-500 to-amber-600',
+    bgColor: 'bg-yellow-50',
+    textColor: 'text-yellow-700',
+    description: 'Dự báo nhu cầu, lập kế hoạch sản xuất, cảnh báo tồn kho',
+  },
+  collection_director: {
+    role: 'collection_director',
+    name: 'AI Collection Director',
+    title: 'Giám đốc Bộ sưu tập',
+    avatar: 'BST',
+    color: 'bg-gradient-to-br from-fuchsia-500 to-purple-600',
+    bgColor: 'bg-fuchsia-50',
+    textColor: 'text-fuchsia-700',
+    description: 'Quản lý 12 BST/năm, AI design workflow, trend & performance',
+  },
 };
 
-export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach'];
+export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach', 'channel_optimizer', 'inventory_planner', 'collection_director'];
 
 export function getAgentProfile(role: AgentRole): AgentProfile {
   return agentProfiles[role];

@@ -187,8 +187,30 @@ export async function addSelfTask(task: {
   title: string; assignee_id: number; department: string; priority: string;
   month_number: number; points: number; ai_point_reason: string;
 }) {
-  const { data, error } = await getSupabase().from('tasks').insert({
+  const supabase = getSupabase();
+
+  // Validate: employee must exist and be active
+  const { data: emp } = await supabase.from('employees').select('id, department, status')
+    .eq('id', task.assignee_id).single();
+  if (!emp) throw new Error(`Nhân viên #${task.assignee_id} không tồn tại`);
+  if (emp.status !== 'Đang làm việc') throw new Error(`Nhân viên không còn làm việc`);
+
+  // Self-added points cap: max 30pts per task, max 100pts/month buffer
+  if (task.points > 30) {
+    throw new Error(`Task tự thêm tối đa 30 điểm (bạn nhập ${task.points})`);
+  }
+
+  const existingSelfTasks = await getTasks({ assignee_id: task.assignee_id, month_number: task.month_number });
+  const selfPoints = existingSelfTasks
+    .filter((t: { source: string }) => t.source === 'self_added')
+    .reduce((s: number, t: { points: number }) => s + (t.points || 0), 0);
+  if (selfPoints + task.points > 100) {
+    throw new Error(`Đã dùng ${selfPoints}/100 điểm tự thêm tháng ${task.month_number}. Không đủ cho ${task.points} điểm nữa.`);
+  }
+
+  const { data, error } = await supabase.from('tasks').insert({
     ...task,
+    department: emp.department, // Always use employee's actual department
     status: 'todo',
     source: 'self_added',
     category: 'daily',
@@ -254,8 +276,21 @@ export async function submitDailyReport(id: string) {
 }
 
 export async function approveDailyReport(id: string, reviewerId: number, notes?: string) {
-  const { error } = await getSupabase().from('daily_reports').update({
-    status: notes?.includes('AI auto') ? 'approved' : 'approved',
+  const supabase = getSupabase();
+
+  // Validate: reviewer must be the employee's manager or CEO (id=1)
+  const { data: report } = await supabase.from('daily_reports').select('employee_id').eq('id', id).single();
+  if (!report) throw new Error('Report không tồn tại');
+
+  if (reviewerId !== 1) { // CEO can approve anyone
+    const { data: employee } = await supabase.from('employees').select('manager_id').eq('id', report.employee_id).single();
+    if (!employee || employee.manager_id !== reviewerId) {
+      throw new Error('Bạn không có quyền duyệt báo cáo của nhân viên này');
+    }
+  }
+
+  const { error } = await supabase.from('daily_reports').update({
+    status: 'approved',
     reviewed_by: reviewerId,
     reviewed_at: new Date().toISOString(),
     review_notes: notes || null,
@@ -285,7 +320,20 @@ export async function getTaskSubmissions(dailyReportId: string) {
 export async function upsertTaskSubmission(sub: {
   daily_report_id: string; task_id: string; actual_value: string; actual_numeric?: number | null; notes?: string;
 }) {
-  const { data, error } = await getSupabase().from('task_submissions').upsert(sub, {
+  const supabase = getSupabase();
+
+  // Validate: task must belong to the employee who owns the daily report
+  const { data: report } = await supabase.from('daily_reports').select('employee_id').eq('id', sub.daily_report_id).single();
+  if (!report) throw new Error('Daily report không tồn tại');
+
+  const { data: task } = await supabase.from('tasks').select('assignee_id').eq('id', sub.task_id).single();
+  if (!task) throw new Error('Task không tồn tại');
+
+  if (task.assignee_id !== report.employee_id) {
+    throw new Error(`Bạn không có quyền submit cho task này. Task được giao cho nhân viên #${task.assignee_id}`);
+  }
+
+  const { data, error } = await supabase.from('task_submissions').upsert(sub, {
     onConflict: 'daily_report_id,task_id',
   }).select().single();
   if (error) throw error;
@@ -329,32 +377,56 @@ export async function getAllTaskSubmissions(filters?: {
   return allSubs;
 }
 
-/** Core: aggregate actual_numeric by task_id → Map */
+/** Core: aggregate actual_numeric by task_id → Map.
+ *  Only counts submissions from reports owned by the task's assigned employee.
+ *  This prevents cross-employee data pollution. */
 export async function getAggregatedActuals(taskIds: string[]): Promise<Map<string, AggregatedActual>> {
   const result = new Map<string, AggregatedActual>();
   if (taskIds.length === 0) return result;
 
-  // Get all approved/submitted report IDs
-  const { data: reports, error: rErr } = await getSupabase().from('daily_reports').select('id')
+  const supabase = getSupabase();
+
+  // Build a map of task_id → assignee_id for ownership validation
+  const taskAssignees = new Map<string, number>();
+  for (let i = 0; i < taskIds.length; i += 100) {
+    const batch = taskIds.slice(i, i + 100);
+    const { data: tasks } = await supabase.from('tasks').select('id, assignee_id').in('id', batch);
+    if (tasks) tasks.forEach((t: { id: string; assignee_id: number }) => taskAssignees.set(t.id, t.assignee_id));
+  }
+
+  // Get all approved/submitted reports with employee_id
+  const { data: reports, error: rErr } = await supabase.from('daily_reports').select('id, employee_id')
     .in('status', ['submitted', 'approved']);
   if (rErr) throw rErr;
   if (!reports || reports.length === 0) return result;
 
+  // Map report_id → employee_id for validation
+  const reportOwners = new Map<string, number>();
+  reports.forEach((r: { id: string; employee_id: number }) => reportOwners.set(r.id, r.employee_id));
+
   const reportIds = reports.map((r: { id: string }) => r.id);
 
   // Fetch submissions in batches
-  const allSubs: Array<{ task_id: string; actual_value: string; actual_numeric: number | null }> = [];
+  const allSubs: Array<{ task_id: string; actual_value: string; actual_numeric: number | null; daily_report_id: string }> = [];
   for (let i = 0; i < reportIds.length; i += 100) {
     const batch = reportIds.slice(i, i + 100);
-    const { data, error } = await getSupabase().from('task_submissions').select('task_id, actual_value, actual_numeric')
+    const { data, error } = await supabase.from('task_submissions').select('task_id, actual_value, actual_numeric, daily_report_id')
       .in('daily_report_id', batch);
     if (error) throw error;
     if (data) allSubs.push(...data);
   }
 
-  // Aggregate by task_id
+  // Aggregate by task_id — ONLY if report owner matches task assignee
   for (const sub of allSubs) {
     if (!taskIds.includes(sub.task_id)) continue;
+
+    // Validate: report must belong to the task's assigned employee
+    const taskAssignee = taskAssignees.get(sub.task_id);
+    const reportOwner = reportOwners.get(sub.daily_report_id);
+    if (taskAssignee !== undefined && reportOwner !== undefined && taskAssignee !== reportOwner) {
+      continue; // Skip cross-employee submissions
+    }
+
     const existing = result.get(sub.task_id);
     if (existing) {
       existing.totalActual += sub.actual_numeric || 0;
@@ -387,6 +459,7 @@ export function computeVariance(target: number, actual: number | null): Variance
 export interface TaskWithActual {
   id: string;
   title: string;
+  description?: string;
   status: string;
   priority: string;
   points: number;
@@ -399,6 +472,7 @@ export interface TaskWithActual {
   kpi_metric?: string | null;
   kpi_target?: string | null;
   kpi_unit?: string | null;
+  links?: Array<{ url: string; title: string }>;
   // Aggregated actual data
   actualTotal: number | null;
   actualCount: number;
@@ -686,9 +760,23 @@ export async function getMasterPlans(filters?: { role?: string; plan_type?: stri
   return data || [];
 }
 
-export async function updateMasterPlan(id: string, updates: { current_value?: number; status?: string; description?: string }) {
-  const { error } = await getSupabase().from('master_plans').update({
-    ...updates, updated_at: new Date().toISOString(),
+export async function updateMasterPlan(id: string, updates: { current_value?: number; status?: string; description?: string }, updatedBy?: number) {
+  const supabase = getSupabase();
+
+  // Validate: current_value must not exceed target_value
+  if (updates.current_value !== undefined) {
+    const { data: plan } = await supabase.from('master_plans').select('target_value, role').eq('id', id).single();
+    if (plan && updates.current_value > plan.target_value * 1.5) {
+      throw new Error(`Giá trị thực tế (${updates.current_value}) vượt quá 150% mục tiêu (${plan.target_value}). Kiểm tra lại.`);
+    }
+    if (updates.current_value < 0) {
+      throw new Error('Giá trị thực tế không thể âm');
+    }
+  }
+
+  const { error } = await supabase.from('master_plans').update({
+    ...updates,
+    updated_at: new Date().toISOString(),
   }).eq('id', id);
   if (error) throw error;
 }
@@ -699,12 +787,62 @@ export async function createTask(task: {
   title: string; assignee_id: number; department: string; priority: string;
   points?: number; category?: string; description?: string; due_date?: string;
   created_by?: number; month_number?: number;
+  kpi_metric?: string; kpi_target?: string; kpi_unit?: string;
 }) {
-  const { data, error } = await getSupabase().from('tasks').insert({
+  const supabase = getSupabase();
+
+  // Validate: assignee must exist and be active
+  const { data: assignee } = await supabase.from('employees').select('id, department, status')
+    .eq('id', task.assignee_id).single();
+  if (!assignee) throw new Error(`Nhân viên #${task.assignee_id} không tồn tại`);
+  if (assignee.status !== 'Đang làm việc') throw new Error(`Nhân viên #${task.assignee_id} không còn làm việc`);
+
+  // Validate: task department must match assignee's department
+  if (task.department && task.department !== assignee.department) {
+    throw new Error(`Nhân viên thuộc ${assignee.department}, không thể giao task phòng ${task.department}`);
+  }
+
+  // Validate: creator must be manager of assignee's department or CEO
+  if (task.created_by && task.created_by !== 1) { // CEO (id=1) can create for anyone
+    const { data: emp } = await supabase.from('employees').select('manager_id').eq('id', task.assignee_id).single();
+    if (emp && emp.manager_id !== task.created_by) {
+      // Check if creator is in same department (peer managers)
+      const { data: creator } = await supabase.from('employees').select('department').eq('id', task.created_by).single();
+      if (!creator || creator.department !== assignee.department) {
+        throw new Error('Bạn chỉ được giao task cho nhân viên trong phòng ban của mình');
+      }
+    }
+  }
+
+  // Validate: KPI target must be a valid positive number if provided
+  if (task.kpi_target) {
+    const targetNum = parseFloat(String(task.kpi_target).replace(/[^0-9.]/g, ''));
+    if (isNaN(targetNum) || targetNum <= 0) {
+      throw new Error(`KPI target "${task.kpi_target}" không hợp lệ. Phải là số dương.`);
+    }
+  }
+
+  // Validate: month_number must be 1-12
+  const monthNum = task.month_number || new Date().getMonth() + 1;
+  if (monthNum < 1 || monthNum > 12) {
+    throw new Error(`Tháng ${monthNum} không hợp lệ. Phải từ 1-12.`);
+  }
+
+  // Warning: check monthly point budget (900 pts planned)
+  const existingTasks = await getTasks({ assignee_id: task.assignee_id, month_number: monthNum });
+  const existingPoints = existingTasks.reduce((s: number, t: { points: number; source: string }) =>
+    t.source === 'planned' ? s + (t.points || 0) : s, 0);
+  const newPoints = task.points || 0;
+  if (existingPoints + newPoints > 1000) {
+    console.warn(`[POINT BUDGET] NV#${task.assignee_id} T${monthNum}: ${existingPoints}+${newPoints}=${existingPoints + newPoints} pts (vượt budget 900)`);
+  }
+
+  const { data, error } = await supabase.from('tasks').insert({
     ...task,
+    department: assignee.department, // Always use assignee's actual department
     status: 'todo',
     source: 'planned',
-    month_number: task.month_number || new Date().getMonth() + 1,
+    month_number: monthNum,
     due_date: task.due_date || new Date().toISOString().split('T')[0],
   }).select().single();
   if (error) throw error;
@@ -712,6 +850,24 @@ export async function createTask(task: {
 }
 
 export async function updateTask(id: string, updates: Record<string, unknown>) {
+  // Validate: if changing assignee_id, new assignee must exist and be active
+  if (updates.assignee_id) {
+    const { data: assignee } = await getSupabase().from('employees').select('id, department, status')
+      .eq('id', updates.assignee_id).single();
+    if (!assignee) throw new Error(`Nhân viên #${updates.assignee_id} không tồn tại`);
+    if (assignee.status !== 'Đang làm việc') throw new Error(`Nhân viên không còn làm việc`);
+    // Auto-correct department to match assignee
+    updates.department = assignee.department;
+  }
+
+  // Validate KPI target if being updated
+  if (updates.kpi_target) {
+    const targetNum = parseFloat(String(updates.kpi_target).replace(/[^0-9.]/g, ''));
+    if (isNaN(targetNum) || targetNum <= 0) {
+      throw new Error(`KPI target "${updates.kpi_target}" không hợp lệ`);
+    }
+  }
+
   const { error } = await getSupabase().from('tasks').update(updates).eq('id', id);
   if (error) throw error;
 }
@@ -745,6 +901,27 @@ export async function addTaskComment(comment: { task_id: string; author_id: numb
 
 export async function deleteTaskComment(id: string) {
   const { error } = await getSupabase().from('task_comments').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ============ SUBTASKS ============
+
+export interface SubTask {
+  id: string;
+  title: string;
+  assignee_id?: number;
+  done: boolean;
+  created_at: string;
+}
+
+export async function getSubTasks(taskId: string): Promise<SubTask[]> {
+  const { data, error } = await getSupabase().from('tasks').select('subtasks').eq('id', taskId).single();
+  if (error) throw error;
+  return (data?.subtasks as SubTask[]) || [];
+}
+
+export async function updateSubTasks(taskId: string, subtasks: SubTask[]): Promise<void> {
+  const { error } = await getSupabase().from('tasks').update({ subtasks }).eq('id', taskId);
   if (error) throw error;
 }
 

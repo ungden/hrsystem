@@ -27,6 +27,7 @@ import {
   getTasksWithActuals,
   type TaskWithActual,
 } from "@/lib/supabase-data";
+import TaskDetailModal from "@/components/TaskDetailModal";
 import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 import VarianceBadge from '@/components/VarianceBadge';
 import PlanActualBar from '@/components/PlanActualBar';
@@ -62,11 +63,11 @@ function PriorityDot({ priority }: { priority: string }) {
 }
 
 // ─── Compact task card (used in Kanban + Calendar) ───
-function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, dir: "left" | "right") => void }) {
+function TaskCard({ task, onMove, onSelect }: { task: Task; onMove: (id: string, dir: "left" | "right") => void; onSelect?: (task: Task) => void }) {
   const pConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const statusIdx = statusOrder.indexOf(task.status as TaskStatus);
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm hover:shadow-md transition-shadow group">
+    <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm hover:shadow-md transition-shadow group cursor-pointer" onClick={() => onSelect?.(task)}>
       <div className="flex items-start justify-between gap-1">
         <p className="text-[12px] font-medium text-slate-800 leading-tight flex-1">{task.title}</p>
         {task.points > 0 && (
@@ -92,9 +93,9 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, dir: "lef
           {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
         </div>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => onMove(task.id, "left")} disabled={statusIdx === 0}
+          <button onClick={e => { e.stopPropagation(); onMove(task.id, "left"); }} disabled={statusIdx === 0}
             className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20"><ChevronLeft className="w-3 h-3" /></button>
-          <button onClick={() => onMove(task.id, "right")} disabled={statusIdx === statusOrder.length - 1}
+          <button onClick={e => { e.stopPropagation(); onMove(task.id, "right"); }} disabled={statusIdx === statusOrder.length - 1}
             className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20"><ChevronRight className="w-3 h-3" /></button>
         </div>
       </div>
@@ -103,7 +104,7 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, dir: "lef
 }
 
 // ─── Kanban View ───
-function KanbanView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: "left" | "right") => void }) {
+function KanbanView({ tasks, onMove, onSelect }: { tasks: Task[]; onMove: (id: string, dir: "left" | "right") => void; onSelect?: (task: Task) => void }) {
   const columns = statusOrder.map(status => ({
     status,
     config: COLUMN_CONFIG[status],
@@ -124,7 +125,7 @@ function KanbanView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir
           </div>
           <div className="p-2 space-y-2 max-h-[600px] overflow-y-auto">
             {colTasks.map(task => (
-              <TaskCard key={task.id} task={task} onMove={onMove} />
+              <TaskCard key={task.id} task={task} onMove={onMove} onSelect={onSelect} />
             ))}
             {colTasks.length === 0 && (
               <p className="text-[11px] text-slate-300 text-center py-8 italic">Trống</p>
@@ -137,9 +138,10 @@ function KanbanView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir
 }
 
 // ─── Calendar View ───
-function CalendarView({ tasks, month, year, onMove }: {
+function CalendarView({ tasks, month, year, onMove, onSelect }: {
   tasks: Task[]; month: number; year: number;
   onMove: (id: string, dir: "left" | "right") => void;
+  onSelect?: (task: Task) => void;
 }) {
   const firstDay = new Date(year, month - 1, 1);
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -220,8 +222,9 @@ function CalendarView({ tasks, month, year, onMove }: {
                     };
                     return (
                       <div key={task.id}
-                        className={`text-[9px] px-1 py-0.5 rounded truncate cursor-default ${statusColors[task.status] || statusColors.todo}`}
+                        className={`text-[9px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${statusColors[task.status] || statusColors.todo}`}
                         title={`${task.title} (${task.points}đ)`}
+                        onClick={() => onSelect?.(task)}
                       >
                         <PriorityDot priority={task.priority} /> {task.title}
                       </div>
@@ -243,7 +246,7 @@ function CalendarView({ tasks, month, year, onMove }: {
           <h4 className="text-xs font-bold text-slate-500 mb-2">Chưa có deadline ({noDueDateTasks.length})</h4>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
             {noDueDateTasks.slice(0, 12).map(task => (
-              <TaskCard key={task.id} task={task} onMove={onMove} />
+              <TaskCard key={task.id} task={task} onMove={onMove} onSelect={onSelect} />
             ))}
           </div>
           {noDueDateTasks.length > 12 && (
@@ -256,7 +259,7 @@ function CalendarView({ tasks, month, year, onMove }: {
 }
 
 // ─── Compact List View ───
-function ListView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: "left" | "right") => void }) {
+function ListView({ tasks, onMove, onSelect }: { tasks: Task[]; onMove: (id: string, dir: "left" | "right") => void; onSelect?: (task: Task) => void }) {
   const [sortBy, setSortBy] = useState<'status' | 'priority' | 'points'>('status');
 
   const sorted = useMemo(() => {
@@ -302,7 +305,7 @@ function ListView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: 
           const colConfig = COLUMN_CONFIG[task.status] || COLUMN_CONFIG.todo;
           const statusIdx = statusOrder.indexOf(task.status as TaskStatus);
           return (
-            <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors group">
+            <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => onSelect?.(task)}>
               <GripVertical className="w-3 h-3 text-slate-300 flex-shrink-0" />
               <PriorityDot priority={task.priority} />
               <p className={`text-[12px] font-medium flex-1 min-w-0 truncate ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
@@ -324,9 +327,9 @@ function ListView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: 
                 </span>
               )}
               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <button onClick={() => onMove(task.id, "left")} disabled={statusIdx === 0}
+                <button onClick={e => { e.stopPropagation(); onMove(task.id, "left"); }} disabled={statusIdx === 0}
                   className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20"><ChevronLeft className="w-3.5 h-3.5" /></button>
-                <button onClick={() => onMove(task.id, "right")} disabled={statusIdx === statusOrder.length - 1}
+                <button onClick={e => { e.stopPropagation(); onMove(task.id, "right"); }} disabled={statusIdx === statusOrder.length - 1}
                   className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20"><ChevronRight className="w-3.5 h-3.5" /></button>
               </div>
             </div>
@@ -347,6 +350,7 @@ export default function CongViecCuaToiPage() {
   const [loading, setLoading] = useState(true);
   const [pointStats, setPointStats] = useState({ totalPoints: 0, earnedPoints: 0, taskCount: 0 });
   const [careerInfo, setCareerInfo] = useState<CareerInfo | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskWithActual | null>(null);
 
   const currentEmployee = allEmployees.find((e) => e.id === selectedEmpId);
 
@@ -385,7 +389,7 @@ export default function CongViecCuaToiPage() {
       }
     }
     load();
-  }, [selectedEmpId]);
+  }, [selectedEmpId, currentMonth]);
 
   // Client-side filter by month (0 = show all)
   const filtered = useMemo(() =>
@@ -520,15 +524,45 @@ export default function CongViecCuaToiPage() {
       </div>
 
       {/* View content */}
-      {viewMode === "kanban" && <KanbanView tasks={filtered} onMove={moveTask} />}
-      {viewMode === "calendar" && currentMonth > 0 && <CalendarView tasks={filtered} month={currentMonth} year={2026} onMove={moveTask} />}
+      {viewMode === "kanban" && <KanbanView tasks={filtered} onMove={moveTask} onSelect={setSelectedTask} />}
+      {viewMode === "calendar" && currentMonth > 0 && <CalendarView tasks={filtered} month={currentMonth} year={2026} onMove={moveTask} onSelect={setSelectedTask} />}
       {viewMode === "calendar" && currentMonth === 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
           <CalendarIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
           <p className="text-sm text-slate-500">Chọn tháng cụ thể để xem lịch</p>
         </div>
       )}
-      {viewMode === "list" && <ListView tasks={filtered} onMove={moveTask} />}
+      {viewMode === "list" && <ListView tasks={filtered} onMove={moveTask} onSelect={setSelectedTask} />}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={{
+            id: selectedTask.id,
+            title: selectedTask.title,
+            description: selectedTask.description,
+            status: selectedTask.status,
+            priority: selectedTask.priority,
+            assignee_id: selectedTask.assignee_id,
+            due_date: selectedTask.due_date,
+            points: selectedTask.points,
+            category: selectedTask.category,
+            department: selectedTask.department,
+            links: selectedTask.links,
+          }}
+          employees={allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department }))}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={async () => {
+            const [updatedTasks, stats] = await Promise.all([
+              getTasksWithActuals({ assignee_id: selectedEmpId }),
+              getEmployeePointStats(selectedEmpId, currentMonth || undefined),
+            ]);
+            setTasks(updatedTasks);
+            setPointStats(stats);
+            setSelectedTask(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employ
 import { PRIORITY_CONFIG, COLUMN_CONFIG } from '@/lib/career-config';
 import VarianceBadge from '@/components/VarianceBadge';
 import PlanActualBar from '@/components/PlanActualBar';
+import TaskDetailModal from '@/components/TaskDetailModal';
 
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type ViewMode = 'kanban' | 'calendar' | 'list';
@@ -19,11 +20,12 @@ function PriorityDot({ priority }: { priority: string }) {
 
 export default function MyTasksPage() {
   const [tasks, setTasks] = useState<TaskWithActual[]>([]);
-  const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string }>>([]);
+  const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string; department: string }>>([]);
   const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [currentMonth, setCurrentMonth] = useState(0); // 0 = all months
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<TaskWithActual | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -158,7 +160,7 @@ export default function MyTasksPage() {
                     const pConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
                     const idx = statusOrder.indexOf(task.status as TaskStatus);
                     return (
-                      <div key={task.id} className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm hover:shadow-md transition-shadow group">
+                      <div key={task.id} className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm hover:shadow-md transition-shadow group cursor-pointer" onClick={() => setSelectedTask(task)}>
                         <div className="flex items-start justify-between gap-1">
                           <p className="text-[12px] font-medium text-slate-800 leading-tight flex-1">{task.title}</p>
                           {task.points > 0 && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full flex-shrink-0">{task.points}đ</span>}
@@ -178,9 +180,9 @@ export default function MyTasksPage() {
                             {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
                           </div>
                           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => moveTask(task.id, 'left')} disabled={idx === 0}
+                            <button onClick={e => { e.stopPropagation(); moveTask(task.id, 'left'); }} disabled={idx === 0}
                               className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20"><ChevronLeft className="w-3 h-3" /></button>
-                            <button onClick={() => moveTask(task.id, 'right')} disabled={idx === statusOrder.length - 1}
+                            <button onClick={e => { e.stopPropagation(); moveTask(task.id, 'right'); }} disabled={idx === statusOrder.length - 1}
                               className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20"><ChevronRight className="w-3 h-3" /></button>
                           </div>
                         </div>
@@ -255,7 +257,7 @@ export default function MyTasksPage() {
             const statusBadge: Record<string, string> = { done: 'bg-green-100 text-green-700', in_progress: 'bg-blue-100 text-blue-700', review: 'bg-purple-100 text-purple-700', todo: 'bg-slate-100 text-slate-600' };
             const idx = statusOrder.indexOf(task.status as TaskStatus);
             return (
-              <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors group">
+              <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => setSelectedTask(task)}>
                 <GripVertical className="w-3 h-3 text-slate-300" />
                 <PriorityDot priority={task.priority} />
                 <p className={`text-[12px] font-medium flex-1 min-w-0 truncate ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</p>
@@ -264,15 +266,41 @@ export default function MyTasksPage() {
                 {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
                 {task.due_date && <span className="text-[9px] text-slate-400 w-14 text-right">{new Date(task.due_date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</span>}
                 <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => moveTask(task.id, 'left')} disabled={idx === 0}
+                  <button onClick={e => { e.stopPropagation(); moveTask(task.id, 'left'); }} disabled={idx === 0}
                     className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20"><ChevronLeft className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => moveTask(task.id, 'right')} disabled={idx === statusOrder.length - 1}
+                  <button onClick={e => { e.stopPropagation(); moveTask(task.id, 'right'); }} disabled={idx === statusOrder.length - 1}
                     className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20"><ChevronRight className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={{
+            id: selectedTask.id,
+            title: selectedTask.title,
+            description: selectedTask.description,
+            status: selectedTask.status,
+            priority: selectedTask.priority,
+            assignee_id: selectedTask.assignee_id,
+            due_date: selectedTask.due_date,
+            points: selectedTask.points,
+            category: selectedTask.category,
+            department: selectedTask.department,
+            links: selectedTask.links,
+          }}
+          employees={allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department || '' }))}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={async () => {
+            const updatedTasks = await getTasksWithActuals({ assignee_id: selectedEmpId });
+            setTasks(updatedTasks);
+            setSelectedTask(null);
+          }}
+        />
       )}
     </div>
   );

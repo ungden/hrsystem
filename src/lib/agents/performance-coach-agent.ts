@@ -1,5 +1,5 @@
 import { IndividualPlan, AgentMessage } from '../agent-types';
-import { getEmployees, getEmployeeCareers, getPerformanceRatings, getTasks } from '@/lib/supabase-data';
+import { getEmployees, getEmployeeCareers, getPerformanceRatings, getTasksWithActuals, type TaskWithActual } from '@/lib/supabase-data';
 
 export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise<{
   updatedPlans: IndividualPlan[];
@@ -9,22 +9,33 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
     getEmployees(),
     getEmployeeCareers(),
     getPerformanceRatings(),
-    getTasks(),
+    getTasksWithActuals(),
   ]);
 
   const activeEmployees = employees.filter((e: { status: string }) => e.status === 'Đang làm việc');
   const messages: AgentMessage[] = [];
 
-  // Build task completion map per employee: { empId → { done, total, completionRate } }
-  const empTaskMap = new Map<number, { done: number; total: number; completionRate: number }>();
+  // Build task completion + KPI achievement map per employee
+  const empTaskMap = new Map<number, { done: number; total: number; completionRate: number; kpiPct: number; kpiTasks: number }>();
   for (const emp of activeEmployees) {
-    const empTasks = allTasks.filter((t: { assignee_id: number }) => t.assignee_id === emp.id);
-    const done = empTasks.filter((t: { status: string }) => t.status === 'done').length;
+    const empTasks = (allTasks as TaskWithActual[]).filter(t => t.assignee_id === emp.id);
+    const done = empTasks.filter(t => t.status === 'done').length;
     const total = empTasks.length;
+
+    // KPI achievement from real submissions
+    const kpiTasks = empTasks.filter(t => t.kpi_target);
+    let kpiTgt = 0, kpiAct = 0;
+    kpiTasks.forEach(t => {
+      const tv = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+      if (!isNaN(tv) && tv > 0) { kpiTgt += tv; kpiAct += t.actualTotal || 0; }
+    });
+
     empTaskMap.set(emp.id, {
       done,
       total,
       completionRate: total > 0 ? done / total : 0,
+      kpiPct: kpiTgt > 0 ? Math.round((kpiAct / kpiTgt) * 100) : 0,
+      kpiTasks: kpiTasks.length,
     });
   }
 
@@ -74,18 +85,25 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
     const recentRating = empRatings.length > 0 ? empRatings[empRatings.length - 1] : null;
     const recentTier = recentRating?.tier || 'Good';
 
-    // Risk detection: < 30% task completion AND weak/poor rating
+    const kpiPct = taskStats?.kpiPct ?? 0;
+    const kpiTaskCount = taskStats?.kpiTasks ?? 0;
+    const kpiLabel = kpiTaskCount > 0 ? `, KPI TT: ${kpiPct}%` : '';
+
+    // Risk detection: < 30% task completion AND weak/poor rating, OR KPI < 30% with submissions
     if (completionRate < 0.3 && (recentTier === 'Weak' || recentTier === 'Poor')) {
-      riskEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI})`);
+      riskEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI}${kpiLabel})`);
+    }
+    else if (kpiTaskCount > 0 && kpiPct < 30 && completionRate < 0.5) {
+      riskEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%${kpiLabel} - KPI thực tế quá thấp)`);
     }
     // Star detection: ≥ 80% task completion AND strong/top rating
     else if (completionRate >= 0.8 && (recentTier === 'Strong' || recentTier === 'Top')) {
-      starEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI})`);
+      starEmployees.push(`${emp.name} (tasks: ${Math.round(completionRate * 100)}%, KPI: ${avgKPI}${kpiLabel})`);
     }
-    // Also flag employees with plans at risk but who don't meet strict criteria
+    // Also flag employees with plans at risk
     else if (empPlans.some(p => p.status === 'at_risk') || avgKPI < 55) {
       if (!riskEmployees.some(r => r.startsWith(emp.name))) {
-        riskEmployees.push(`${emp.name} (KPI: ${avgKPI})`);
+        riskEmployees.push(`${emp.name} (KPI: ${avgKPI}${kpiLabel})`);
       }
     }
   }
@@ -110,7 +128,18 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
     agentRole: 'performance_coach',
     agentName: 'AI Coach',
     timestamp: new Date().toISOString(),
-    content: `Tong quan hieu suat: ${totalPlans} nhiem vu - Hoan thanh: ${completedCount} (${totalPlans > 0 ? Math.round(completedCount/totalPlans*100) : 0}%), Dang thuc hien: ${inProgressCount}, Rui ro: ${atRiskCount} (${totalPlans > 0 ? Math.round(atRiskCount/totalPlans*100) : 0}%). Task completion thuc te (Supabase): ${totalTasksDone}/${totalTasksAll} (${overallTaskCompletion}%).`,
+    content: (() => {
+      let totalKpiTgt = 0, totalKpiAct = 0, totalKpiCount = 0;
+      empTaskMap.forEach(stats => { totalKpiCount += stats.kpiTasks; });
+      (allTasks as TaskWithActual[]).forEach(t => {
+        if (t.kpi_target) {
+          const tv = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+          if (!isNaN(tv) && tv > 0) { totalKpiTgt += tv; totalKpiAct += t.actualTotal || 0; }
+        }
+      });
+      const overallKpi = totalKpiTgt > 0 ? Math.round((totalKpiAct / totalKpiTgt) * 100) : 0;
+      return `Tổng quan hiệu suất: ${totalPlans} nhiệm vụ - Hoàn thành: ${completedCount} (${totalPlans > 0 ? Math.round(completedCount/totalPlans*100) : 0}%), Đang thực hiện: ${inProgressCount}, Rủi ro: ${atRiskCount}. Task: ${totalTasksDone}/${totalTasksAll} (${overallTaskCompletion}%). KPI thực tế: ${overallKpi}% (${totalKpiCount} chỉ tiêu có submission).`;
+    })(),
     type: 'analysis',
   });
 
@@ -120,7 +149,7 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
       agentRole: 'performance_coach',
       agentName: 'AI Coach',
       timestamp: new Date().toISOString(),
-      content: `Canh bao: ${riskEmployees.length} nhan vien can ho tro: ${riskEmployees.slice(0, 5).join(', ')}${riskEmployees.length > 5 ? '...' : ''}. De xuat: To chuc 1-on-1 coaching, dieu chinh khoi luong cong viec, hoac ghep cap mentor.`,
+      content: `Cảnh báo: ${riskEmployees.length} nhân viên cần hỗ trợ: ${riskEmployees.slice(0, 5).join(', ')}${riskEmployees.length > 5 ? '...' : ''}. Đề xuất: Tổ chức 1-on-1 coaching, điều chỉnh khối lượng công việc, hoặc ghép cặp mentor.`,
       type: 'alert',
     });
   }
@@ -131,7 +160,7 @@ export async function runPerformanceCoachAgent(plans: IndividualPlan[]): Promise
       agentRole: 'performance_coach',
       agentName: 'AI Coach',
       timestamp: new Date().toISOString(),
-      content: `Nhan vien xuat sac: ${starEmployees.slice(0, 5).join(', ')}${starEmployees.length > 5 ? '...' : ''}. De xuat: Xem xet thuong hieu suat, can nhac promotion, hoac giao them trach nhiem de phat trien.`,
+      content: `Nhân viên xuất sắc: ${starEmployees.slice(0, 5).join(', ')}${starEmployees.length > 5 ? '...' : ''}. Đề xuất: Xem xét thưởng hiệu suất, cân nhắc promotion, hoặc giao thêm trách nhiệm để phát triển.`,
       type: 'recommendation',
     });
   }

@@ -8,8 +8,9 @@ import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import ProgressRing from '@/components/agents/ProgressRing';
 import { getDeptFromSlug } from '@/lib/department-utils';
-import { getEmployees, getEmployeeCareers, getTasks, calculateEmployeeScores } from '@/lib/supabase-data';
+import { getEmployees, getEmployeeCareers, calculateEmployeeScores, getTasksWithActuals, type TaskWithActual } from '@/lib/supabase-data';
 import { formatCurrency } from '@/lib/format';
+import VarianceBadge from '@/components/VarianceBadge';
 
 interface Employee {
   id: number;
@@ -29,14 +30,7 @@ interface EmployeeCareer {
   current_salary: number;
 }
 
-interface Task {
-  id: string;
-  assignee_id: number;
-  status: string;
-  department: string;
-  points: number;
-  title: string;
-}
+type Task = TaskWithActual;
 
 interface EmpRanking {
   emp: Employee;
@@ -45,6 +39,7 @@ interface EmpRanking {
   totalTasks: number;
   completionRate: number;
   kpiScore: number;
+  kpiAchievement: number;
   salary: number;
 }
 
@@ -66,7 +61,7 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
         const [allEmployees, allCareers, allTasks, scores] = await Promise.all([
           getEmployees(),
           getEmployeeCareers(),
-          getTasks({ department: deptName }),
+          getTasksWithActuals({ department: deptName }),
           calculateEmployeeScores(),
         ]);
 
@@ -92,6 +87,14 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
           const completed = empTasks.filter(t => t.status === 'done').length;
           const total = empTasks.length;
           const score = scores.find((s: { employee: { id: number } }) => s.employee.id === emp.id);
+          // KPI achievement from real submissions
+          const kpiTasks = empTasks.filter(t => t.kpi_target);
+          let tgt = 0, act = 0;
+          kpiTasks.forEach(t => {
+            const tv = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+            if (!isNaN(tv) && tv > 0) { tgt += tv; act += t.actualTotal || 0; }
+          });
+          const kpiAch = tgt > 0 ? Math.round((act / tgt) * 100) : 0;
           return {
             emp,
             career,
@@ -99,6 +102,7 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
             totalTasks: total,
             completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
             kpiScore: score?.scorePercent || 0,
+            kpiAchievement: kpiAch,
             salary: career?.current_salary || emp.base_salary || 0,
           };
         }).sort((a, b) => b.completionRate - a.completionRate);
@@ -194,6 +198,7 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
                 <th className="pb-2 pr-3">Nhân viên</th>
                 <th className="pb-2 pr-3">Level</th>
                 <th className="pb-2 pr-3 text-center">KPI</th>
+                <th className="pb-2 pr-3 text-center">KPI TT</th>
                 <th className="pb-2 pr-3 text-center">CV hoàn thành</th>
                 <th className="pb-2 pr-3 text-right">Thu nhập</th>
                 <th className="pb-2 text-right">Tiến độ</th>
@@ -218,6 +223,15 @@ export default function DepartmentDetailPage({ params }: { params: Promise<{ dep
                     <span className={`text-sm font-medium ${r.kpiScore >= 75 ? 'text-green-600' : r.kpiScore >= 55 ? 'text-blue-600' : 'text-orange-600'}`}>
                       {r.kpiScore}%
                     </span>
+                  </td>
+                  <td className="py-2.5 pr-3 text-center">
+                    {r.kpiAchievement > 0 ? (
+                      <span className={`text-sm font-medium ${r.kpiAchievement >= 90 ? 'text-green-600' : r.kpiAchievement >= 70 ? 'text-blue-600' : 'text-orange-600'}`}>
+                        {r.kpiAchievement}%
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-300">—</span>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3 text-center text-sm text-slate-600">{r.completedTasks}/{r.totalTasks}</td>
                   <td className="py-2.5 pr-3 text-right text-sm text-slate-700">{formatCurrency(r.salary)}</td>

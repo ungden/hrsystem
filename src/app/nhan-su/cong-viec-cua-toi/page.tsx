@@ -19,32 +19,23 @@ import PageHeader from "@/components/PageHeader";
 import { PRIORITY_CONFIG, COLUMN_CONFIG } from "@/lib/career-config";
 import {
   getEmployees,
-  getTasks,
   updateTaskStatus,
   getEmployeePointStats,
   calculatePromotionReadiness,
   getEmployeeCareer,
   getCareerLevel,
+  getTasksWithActuals,
+  type TaskWithActual,
 } from "@/lib/supabase-data";
 import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
+import VarianceBadge from '@/components/VarianceBadge';
+import PlanActualBar from '@/components/PlanActualBar';
 
 type TaskStatus = "todo" | "in_progress" | "review" | "done";
 type ViewMode = "kanban" | "calendar" | "list";
 const statusOrder: TaskStatus[] = ["todo", "in_progress", "review", "done"];
 
-interface Task {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  points: number;
-  category: string;
-  due_date: string;
-  assignee_id: number;
-  department: string;
-  month_number?: number | null;
-  week_number?: number | null;
-}
+type Task = TaskWithActual;
 
 interface Employee {
   id: number;
@@ -84,16 +75,21 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, dir: "lef
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between mt-2">
+      {task.kpi_target && (
+        <div className="mt-1.5">
+          <PlanActualBar
+            target={parseFloat(String(task.kpi_target).replace(/[^0-9.]/g, '')) || 0}
+            actual={task.actualTotal}
+            status={task.varianceStatus}
+          />
+        </div>
+      )}
+      <div className="flex items-center justify-between mt-1.5">
         <div className="flex items-center gap-1.5">
           <span className={`text-[9px] px-1.5 py-0.5 rounded ${pConfig.bg} ${pConfig.color}`}>
             {pConfig.label}
           </span>
-          {task.category && (
-            <span className="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded">
-              {task.category}
-            </span>
-          )}
+          {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
         </div>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={() => onMove(task.id, "left")} disabled={statusIdx === 0}
@@ -318,6 +314,7 @@ function ListView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: 
               <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${pConfig.bg} ${pConfig.color}`}>
                 {pConfig.label}
               </span>
+              {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
               {task.points > 0 && (
                 <span className="text-[9px] font-bold text-yellow-600 w-8 text-right flex-shrink-0">{task.points}đ</span>
               )}
@@ -342,7 +339,7 @@ function ListView({ tasks, onMove }: { tasks: Task[]; onMove: (id: string, dir: 
 
 // ─── Main Page ───
 export default function CongViecCuaToiPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskWithActual[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [currentMonth, setCurrentMonth] = useState(0); // 0 = all months
@@ -359,7 +356,7 @@ export default function CongViecCuaToiPage() {
       try {
         const [emps, empTasks, stats] = await Promise.all([
           getEmployees(),
-          getTasks({ assignee_id: selectedEmpId }),
+          getTasksWithActuals({ assignee_id: selectedEmpId }),
           getEmployeePointStats(selectedEmpId, currentMonth || undefined),
         ]);
         setAllEmployees(emps);

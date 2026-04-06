@@ -2,7 +2,7 @@ import {
   AnnualTarget, QuarterlyMilestone, MonthlyPlan, WeeklySprint, DailyTask, TaskItem,
   EmployeeCascade,
 } from './cascade-types';
-import { getEmployees, getEmployeeCareers, getTasks, getMasterPlans } from '@/lib/supabase-data';
+import { getEmployees, getEmployeeCareers, getTasks, getMasterPlans, getAggregatedActuals, type AggregatedActual } from '@/lib/supabase-data';
 
 const dayNames = ['Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6'];
 
@@ -50,7 +50,8 @@ function generateDailyTasks(
   weekNum: number,
   monthNum: number,
   realTasks: { id: string; title: string; points: number; status: string }[],
-  employeeId: string
+  employeeId: string,
+  actualsMap?: Map<string, AggregatedActual>
 ): DailyTask[] {
   const templates = deptDailyTemplates[dept] || deptDailyTemplates['Ban Giam doc'];
   const baseDate = new Date(2026, monthNum - 1, 1 + (weekNum - 1) * 7);
@@ -77,16 +78,23 @@ function generateDailyTasks(
     let tasks: TaskItem[];
 
     if (dayRealTasks.length > 0) {
-      // Use real tasks
-      tasks = dayRealTasks.map((rt, tIdx) => ({
-        id: rt.id || `task-${employeeId}-${monthNum}-${weekNum}-${dayIdx}-${tIdx}`,
-        title: rt.title,
-        kpiMetric: 'Points',
-        targetValue: rt.points || 1,
-        actualValue: rt.status === 'done' ? (rt.points || 1) : (rt.status === 'in_progress' ? Math.round((rt.points || 1) * 0.5) : 0),
-        unit: 'diem',
-        completed: rt.status === 'done',
-      }));
+      // Use real tasks with real submission data when available
+      tasks = dayRealTasks.map((rt, tIdx) => {
+        const sub = actualsMap?.get(rt.id);
+        // Prefer real submission data; fallback to status-based estimate
+        const actualValue = sub
+          ? sub.totalActual
+          : (rt.status === 'done' ? (rt.points || 1) : (rt.status === 'in_progress' ? Math.round((rt.points || 1) * 0.5) : 0));
+        return {
+          id: rt.id || `task-${employeeId}-${monthNum}-${weekNum}-${dayIdx}-${tIdx}`,
+          title: rt.title,
+          kpiMetric: 'Points',
+          targetValue: rt.points || 1,
+          actualValue,
+          unit: 'diem',
+          completed: rt.status === 'done',
+        };
+      });
     } else {
       // Fall back to templates for days with no real tasks
       tasks = templates.map((t, tIdx) => {
@@ -130,7 +138,8 @@ function generateWeeks(
   monthNum: number,
   monthlyTarget: number,
   realTasks: { id: string; title: string; points: number; status: string }[],
-  employeeId: string
+  employeeId: string,
+  actualsMap?: Map<string, AggregatedActual>
 ): WeeklySprint[] {
   const weekTargetBase = monthlyTarget / 4;
   // Distribute real tasks across 4 weeks
@@ -139,7 +148,7 @@ function generateWeeks(
   return [1, 2, 3, 4].map(weekNum => {
     const weekTarget = Math.round(weekTargetBase);
     const weekRealTasks = realTasks.slice((weekNum - 1) * tasksPerWeek, weekNum * tasksPerWeek);
-    const days = generateDailyTasks(dept, weekNum, monthNum, weekRealTasks, employeeId);
+    const days = generateDailyTasks(dept, weekNum, monthNum, weekRealTasks, employeeId, actualsMap);
     const weekActual = days.reduce((s, d) => s + d.totalActual, 0);
 
     const startDay = 1 + (weekNum - 1) * 7;
@@ -165,6 +174,10 @@ export async function generateEmployeeCascade(employeeId: string): Promise<Emplo
     getTasks({ assignee_id: parseInt(employeeId) }),
     getMasterPlans().catch(() => []),
   ]);
+
+  // Fetch real submission actuals for this employee's tasks
+  const taskIds = allTasks.map((t: { id: string }) => t.id);
+  const actualsMap = await getAggregatedActuals(taskIds);
 
   const emp = employees.find((e: { id: number }) => String(e.id) === employeeId);
   if (!emp) return { employeeId, employeeName: '', department: '', annualTargets: [] };
@@ -202,19 +215,22 @@ export async function generateEmployeeCascade(employeeId: string): Promise<Emplo
       const mTarget = Math.round(qTarget / 3);
       const monthTasks = tasksByMonth[mn] || [];
 
-      // Calculate actual from real task completion
-      const mActualPoints = monthTasks
-        .filter(t => t.status === 'done')
-        .reduce((s, t) => s + t.points, 0);
-      const mInProgressPoints = monthTasks
-        .filter(t => t.status === 'in_progress')
-        .reduce((s, t) => s + Math.round(t.points * 0.5), 0);
+      // Calculate actual from real submissions, fallback to status-based
+      let mActual = 0;
+      monthTasks.forEach(t => {
+        const sub = actualsMap.get(t.id);
+        if (sub) {
+          mActual += sub.totalActual;
+        } else if (t.status === 'done') {
+          mActual += t.points;
+        } else if (t.status === 'in_progress') {
+          mActual += Math.round(t.points * 0.5);
+        }
+      });
 
       const isPastMonth = mn < 4; // before April 2026
       const isCurrentMonth = mn === 4;
-      const mActual = isPastMonth
-        ? mActualPoints + mInProgressPoints
-        : (isCurrentMonth ? mActualPoints + mInProgressPoints : 0);
+      if (!isPastMonth && !isCurrentMonth) mActual = 0;
 
       let status: MonthlyPlan['status'] = 'upcoming';
       if (isPastMonth) {
@@ -224,7 +240,7 @@ export async function generateEmployeeCascade(employeeId: string): Promise<Emplo
         status = 'on_track';
       }
 
-      const weeks = generateWeeks(emp.department, mn, mTarget, monthTasks, employeeId);
+      const weeks = generateWeeks(emp.department, mn, mTarget, monthTasks, employeeId, actualsMap);
 
       return {
         id: `month-${employeeId}-${mn}`,

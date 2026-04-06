@@ -292,6 +292,139 @@ export async function upsertTaskSubmission(sub: {
   return data;
 }
 
+// ============ AGGREGATED ACTUALS (Plan vs Actual) ============
+
+export interface AggregatedActual {
+  totalActual: number;
+  count: number;
+  latestValue: string;
+}
+
+/** Fetch ALL task_submissions in one query, only from submitted/approved reports */
+export async function getAllTaskSubmissions(filters?: {
+  employee_id?: number;
+  department?: string;
+}) {
+  // Join task_submissions with daily_reports to filter by report status
+  let reportQuery = getSupabase().from('daily_reports').select('id')
+    .in('status', ['submitted', 'approved']);
+  if (filters?.employee_id) reportQuery = reportQuery.eq('employee_id', filters.employee_id);
+  if (filters?.department) reportQuery = reportQuery.eq('department', filters.department);
+
+  const { data: reports, error: rErr } = await reportQuery;
+  if (rErr) throw rErr;
+  if (!reports || reports.length === 0) return [];
+
+  const reportIds = reports.map((r: { id: string }) => r.id);
+
+  // Fetch submissions in batches of 100 report IDs to avoid URL length limits
+  const allSubs: Array<{ task_id: string; actual_value: string; actual_numeric: number | null }> = [];
+  for (let i = 0; i < reportIds.length; i += 100) {
+    const batch = reportIds.slice(i, i + 100);
+    const { data, error } = await getSupabase().from('task_submissions').select('task_id, actual_value, actual_numeric')
+      .in('daily_report_id', batch);
+    if (error) throw error;
+    if (data) allSubs.push(...data);
+  }
+  return allSubs;
+}
+
+/** Core: aggregate actual_numeric by task_id → Map */
+export async function getAggregatedActuals(taskIds: string[]): Promise<Map<string, AggregatedActual>> {
+  const result = new Map<string, AggregatedActual>();
+  if (taskIds.length === 0) return result;
+
+  // Get all approved/submitted report IDs
+  const { data: reports, error: rErr } = await getSupabase().from('daily_reports').select('id')
+    .in('status', ['submitted', 'approved']);
+  if (rErr) throw rErr;
+  if (!reports || reports.length === 0) return result;
+
+  const reportIds = reports.map((r: { id: string }) => r.id);
+
+  // Fetch submissions in batches
+  const allSubs: Array<{ task_id: string; actual_value: string; actual_numeric: number | null }> = [];
+  for (let i = 0; i < reportIds.length; i += 100) {
+    const batch = reportIds.slice(i, i + 100);
+    const { data, error } = await getSupabase().from('task_submissions').select('task_id, actual_value, actual_numeric')
+      .in('daily_report_id', batch);
+    if (error) throw error;
+    if (data) allSubs.push(...data);
+  }
+
+  // Aggregate by task_id
+  for (const sub of allSubs) {
+    if (!taskIds.includes(sub.task_id)) continue;
+    const existing = result.get(sub.task_id);
+    if (existing) {
+      existing.totalActual += sub.actual_numeric || 0;
+      existing.count++;
+      if (sub.actual_value) existing.latestValue = sub.actual_value;
+    } else {
+      result.set(sub.task_id, {
+        totalActual: sub.actual_numeric || 0,
+        count: 1,
+        latestValue: sub.actual_value || '',
+      });
+    }
+  }
+  return result;
+}
+
+export type VarianceStatus = 'exceeded' | 'met' | 'near' | 'below' | 'missing';
+
+/** Compute variance status from target vs actual */
+export function computeVariance(target: number, actual: number | null): VarianceStatus {
+  if (actual === null || actual === undefined) return 'missing';
+  if (target <= 0) return actual > 0 ? 'exceeded' : 'missing';
+  const ratio = actual / target;
+  if (ratio >= 1.1) return 'exceeded';
+  if (ratio >= 0.9) return 'met';
+  if (ratio >= 0.7) return 'near';
+  return 'below';
+}
+
+export interface TaskWithActual {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  points: number;
+  category: string;
+  due_date: string;
+  assignee_id: number;
+  department: string;
+  month_number?: number | null;
+  week_number?: number | null;
+  kpi_metric?: string | null;
+  kpi_target?: string | null;
+  kpi_unit?: string | null;
+  // Aggregated actual data
+  actualTotal: number | null;
+  actualCount: number;
+  varianceStatus: VarianceStatus;
+}
+
+/** Convenience: getTasks + getAggregatedActuals → enriched tasks */
+export async function getTasksWithActuals(filters?: Record<string, unknown>): Promise<TaskWithActual[]> {
+  const tasks = await getTasks(filters);
+  const taskIds = tasks.map((t: { id: string }) => t.id);
+  const actuals = await getAggregatedActuals(taskIds);
+
+  return tasks.map((t: { id: string; title: string; status: string; priority: string; points: number; category: string; due_date: string; assignee_id: number; department: string; month_number?: number | null; week_number?: number | null; kpi_metric?: string | null; kpi_target?: string | null; kpi_unit?: string | null }) => {
+    const actual = actuals.get(t.id);
+    const targetNum = t.kpi_target ? parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, '')) : 0;
+    return {
+      ...t,
+      actualTotal: actual ? actual.totalActual : null,
+      actualCount: actual ? actual.count : 0,
+      varianceStatus: t.kpi_target
+        ? computeVariance(targetNum, actual?.totalActual ?? null)
+        : ('missing' as VarianceStatus),
+    };
+  });
+}
+
 // ============ ATTACHMENTS ============
 
 export async function getAttachments(filters: { task_submission_id?: string; daily_report_id?: string; task_id?: string }) {

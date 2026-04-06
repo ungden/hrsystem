@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Target, Building2, Users, CheckCircle2, AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
-import { getEmployees, getTasks, getMasterPlans } from '@/lib/supabase-data';
+import { getEmployees, getMasterPlans, getTasksWithActuals, type TaskWithActual } from '@/lib/supabase-data';
 import { getSlugFromDept } from '@/lib/department-utils';
 
 interface Employee {
@@ -16,14 +16,7 @@ interface Employee {
   status: string;
 }
 
-interface Task {
-  id: string;
-  assignee_id: number;
-  status: string;
-  department: string;
-  title: string;
-  points: number;
-}
+type Task = TaskWithActual;
 
 interface MasterPlan {
   id: string;
@@ -46,6 +39,7 @@ interface DeptSummary {
   totalTasks: number;
   completedTasks: number;
   completionPct: number;
+  kpiAchievement: number;
 }
 
 export default function OKRTreePage() {
@@ -60,7 +54,7 @@ export default function OKRTreePage() {
       try {
         const [emps, allTasks, plans] = await Promise.all([
           getEmployees(),
-          getTasks(),
+          getTasksWithActuals(),
           getMasterPlans(),
         ]);
 
@@ -80,6 +74,7 @@ export default function OKRTreePage() {
               totalTasks: 0,
               completedTasks: 0,
               completionPct: 0,
+              kpiAchievement: 0,
             });
           }
           deptMap.get(e.department)!.headcount++;
@@ -92,6 +87,20 @@ export default function OKRTreePage() {
             d.totalTasks++;
             if (t.status === 'done') d.completedTasks++;
           }
+        });
+
+        // Compute KPI achievement per department from real submissions
+        deptMap.forEach((ds, dept) => {
+          const deptTasks = (allTasks as Task[]).filter(t => {
+            const emp = activeEmps.find(e => e.id === t.assignee_id);
+            return emp?.department === dept && t.kpi_target;
+          });
+          let tgt = 0, act = 0;
+          deptTasks.forEach(t => {
+            const tv = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+            if (!isNaN(tv) && tv > 0) { tgt += tv; act += t.actualTotal || 0; }
+          });
+          ds.kpiAchievement = tgt > 0 ? Math.round((act / tgt) * 100) : 0;
         });
 
         const summaries = Array.from(deptMap.values()).map(d => ({
@@ -160,6 +169,11 @@ export default function OKRTreePage() {
                 <p className="text-xl font-bold text-slate-800">{d.completionPct}%</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">{d.department.replace('Phòng ', '')}</p>
                 <p className="text-[10px] text-slate-400">{d.completedTasks}/{d.totalTasks} CV</p>
+                {d.kpiAchievement > 0 && (
+                  <p className={`text-[10px] font-bold mt-0.5 ${d.kpiAchievement >= 90 ? 'text-green-600' : d.kpiAchievement >= 70 ? 'text-blue-600' : 'text-orange-600'}`}>
+                    KPI: {d.kpiAchievement}%
+                  </p>
+                )}
               </div>
             </Link>
           ))}

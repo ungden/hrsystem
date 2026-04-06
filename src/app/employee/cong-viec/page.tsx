@@ -1,20 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, Clock, AlertTriangle, Loader2, LayoutGrid, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
-import { getEmployees, getTasks, updateTaskStatus } from '@/lib/supabase-data';
+import { CheckCircle2, Clock, AlertTriangle, Loader2, LayoutGrid, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, GripVertical, Target } from 'lucide-react';
+import { getEmployees, updateTaskStatus, getTasksWithActuals, type TaskWithActual, type VarianceStatus } from '@/lib/supabase-data';
 import { getSelectedEmpId, setSelectedEmpId as persistEmpId } from '@/lib/employee-context';
 import { PRIORITY_CONFIG, COLUMN_CONFIG } from '@/lib/career-config';
+import VarianceBadge from '@/components/VarianceBadge';
+import PlanActualBar from '@/components/PlanActualBar';
 
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type ViewMode = 'kanban' | 'calendar' | 'list';
 const statusOrder: TaskStatus[] = ['todo', 'in_progress', 'review', 'done'];
-
-interface Task {
-  id: string; title: string; status: string; priority: string; department: string;
-  kpi_metric: string | null; kpi_target: string | null; month_number: number;
-  assignee_id: number; points: number; category: string; due_date: string;
-}
 
 function PriorityDot({ priority }: { priority: string }) {
   const colors: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-400', medium: 'bg-blue-400', low: 'bg-slate-300' };
@@ -22,7 +18,7 @@ function PriorityDot({ priority }: { priority: string }) {
 }
 
 export default function MyTasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskWithActual[]>([]);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string; role: string }>>([]);
   const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
   const [currentMonth, setCurrentMonth] = useState(0); // 0 = all months
@@ -33,7 +29,10 @@ export default function MyTasksPage() {
     async function load() {
       setLoading(true);
       try {
-        const [emps, allTasks] = await Promise.all([getEmployees(), getTasks({ assignee_id: selectedEmpId })]);
+        const [emps, allTasks] = await Promise.all([
+          getEmployees(),
+          getTasksWithActuals({ assignee_id: selectedEmpId }),
+        ]);
         setAllEmployees(emps);
         setTasks(allTasks);
       } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -58,6 +57,21 @@ export default function MyTasksPage() {
   const done = filtered.filter(t => t.status === 'done').length;
   const inProgress = filtered.filter(t => t.status === 'in_progress' || t.status === 'review').length;
   const todo = filtered.filter(t => t.status === 'todo').length;
+
+  // KPI achievement stats
+  const tasksWithKPI = filtered.filter(t => t.kpi_target);
+  const kpiAchievement = useMemo(() => {
+    if (tasksWithKPI.length === 0) return null;
+    let totalTarget = 0, totalActual = 0;
+    tasksWithKPI.forEach(t => {
+      const tgt = parseFloat(String(t.kpi_target).replace(/[^0-9.]/g, ''));
+      if (!isNaN(tgt) && tgt > 0) {
+        totalTarget += tgt;
+        totalActual += t.actualTotal || 0;
+      }
+    });
+    return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : null;
+  }, [filtered]);
 
   if (loading) {
     return <div className="p-6 flex items-center justify-center min-h-[400px]"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>;
@@ -99,7 +113,7 @@ export default function MyTasksPage() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className={`grid ${kpiAchievement !== null ? 'grid-cols-5' : 'grid-cols-4'} gap-3 mb-5`}>
         <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
           <p className="text-lg font-bold text-slate-800">{filtered.length}</p>
           <p className="text-[10px] text-slate-500">Tổng</p>
@@ -116,6 +130,15 @@ export default function MyTasksPage() {
           <p className="text-lg font-bold text-orange-500">{todo}</p>
           <p className="text-[10px] text-slate-500">Chờ làm</p>
         </div>
+        {kpiAchievement !== null && (
+          <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+            <p className={`text-lg font-bold ${kpiAchievement >= 90 ? 'text-green-600' : kpiAchievement >= 70 ? 'text-blue-600' : 'text-red-500'}`}>{kpiAchievement}%</p>
+            <p className="text-[10px] text-slate-500">KPI đạt</p>
+            <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${kpiAchievement >= 90 ? 'bg-green-500' : kpiAchievement >= 70 ? 'bg-blue-500' : 'bg-red-400'}`} style={{ width: `${Math.min(kpiAchievement, 100)}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kanban View */}
@@ -140,9 +163,19 @@ export default function MyTasksPage() {
                           <p className="text-[12px] font-medium text-slate-800 leading-tight flex-1">{task.title}</p>
                           {task.points > 0 && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full flex-shrink-0">{task.points}đ</span>}
                         </div>
-                        <div className="flex items-center justify-between mt-2">
+                        {task.kpi_target && (
+                          <div className="mt-1.5">
+                            <PlanActualBar
+                              target={parseFloat(String(task.kpi_target).replace(/[^0-9.]/g, '')) || 0}
+                              actual={task.actualTotal}
+                              status={task.varianceStatus}
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-1.5">
                           <div className="flex items-center gap-1">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded ${pConfig.bg} ${pConfig.color}`}>{pConfig.label}</span>
+                            {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
                           </div>
                           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => moveTask(task.id, 'left')} disabled={idx === 0}
@@ -168,7 +201,7 @@ export default function MyTasksPage() {
         const firstDay = new Date(year, currentMonth - 1, 1);
         const daysInMonth = new Date(year, currentMonth, 0).getDate();
         const startDow = firstDay.getDay();
-        const tasksByDay = new Map<number, Task[]>();
+        const tasksByDay = new Map<number, TaskWithActual[]>();
         filtered.forEach(t => {
           if (!t.due_date) return;
           const d = new Date(t.due_date);
@@ -228,6 +261,7 @@ export default function MyTasksPage() {
                 <p className={`text-[12px] font-medium flex-1 min-w-0 truncate ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</p>
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${statusBadge[task.status] || statusBadge.todo}`}>{colConfig.label}</span>
                 <span className={`text-[9px] px-1.5 py-0.5 rounded ${pConfig.bg} ${pConfig.color}`}>{pConfig.label}</span>
+                {task.kpi_target && <VarianceBadge status={task.varianceStatus} size="xs" />}
                 {task.due_date && <span className="text-[9px] text-slate-400 w-14 text-right">{new Date(task.due_date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</span>}
                 <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => moveTask(task.id, 'left')} disabled={idx === 0}

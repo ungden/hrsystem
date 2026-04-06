@@ -29,7 +29,7 @@ export default function DailyReportPage() {
     kpi_unit: string | null; priority: string; status: string; month_number: number;
     points: number; source: string; ai_point_reason: string;
   }>>([]);
-  const [monthlyTarget, setMonthlyTarget] = useState(100);
+  const [monthlyTarget, setMonthlyTarget] = useState(1000);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
@@ -60,7 +60,7 @@ export default function DailyReportPage() {
         const emp = emps.find((e: { id: number }) => e.id === selectedEmpId);
         if (!emp) return;
         setEmployee(emp);
-        setMonthlyTarget(emp.monthly_point_target || 100);
+        setMonthlyTarget(emp.monthly_point_target || 1000);
 
         // Get form template from DB (admin-customizable)
         const template = await getFormTemplateForEmployee(emp.role, emp.department, emp.id);
@@ -72,10 +72,19 @@ export default function DailyReportPage() {
           setFormTemplateName('');
         }
 
-        // Get current month's tasks
+        // Get current month's tasks, then filter for today's due_date
         const currentMonth = new Date(reportDate).getMonth() + 1;
-        const allTasks = await getTasks({ assignee_id: emp.id, month_number: currentMonth });
-        setTasks(allTasks);
+        const allMonthTasks = await getTasks({ assignee_id: emp.id, month_number: currentMonth });
+        // Show only tasks due today (or tasks without due_date that match today's week)
+        const reportWeek = Math.ceil(new Date(reportDate).getDate() / 7);
+        const todayTasks = allMonthTasks.filter((t: { due_date?: string; week_number?: number }) => {
+          if (t.due_date) return t.due_date === reportDate;
+          // Tasks without due_date: show if week matches or no week assigned
+          if (t.week_number) return t.week_number === reportWeek;
+          return false; // Don't show tasks with no date and no week
+        });
+        // If no tasks match today, fall back to showing incomplete tasks for the month
+        setTasks(todayTasks.length > 0 ? todayTasks : allMonthTasks.filter((t: { status: string }) => t.status !== 'done'));
 
         // Get or create daily report
         let existingReport = await getDailyReportByDate(emp.id, reportDate);
@@ -226,14 +235,14 @@ export default function DailyReportPage() {
           <span className="text-sm font-bold text-slate-800">{earnedPoints}/{monthlyTarget} pts</span>
         </div>
         <p className="text-[11px] text-slate-600">{salaryImpact.message}</p>
-        <p className="text-[10px] text-slate-400 mt-1">Tổng points tất cả tasks: {totalPoints} pts | Lương: {salaryImpact.salaryPct}%</p>
+        <p className="text-[10px] text-slate-400 mt-1">Hôm nay: {totalPoints} pts | Target tháng: {monthlyTarget} pts | Lương: {salaryImpact.salaryPct}%</p>
       </div>
 
       {/* ═══════════ PHẦN 1: TO-DO LIST ═══════════ */}
       <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
         <div className="flex items-center gap-2 p-4 bg-blue-50 border-b border-blue-100">
           <ClipboardList size={18} className="text-blue-600" />
-          <h2 className="text-sm font-bold text-blue-800">PHẦN 1: TO-DO LIST — Công việc hôm nay</h2>
+          <h2 className="text-sm font-bold text-blue-800">PHẦN 1: TO-DO LIST — Công việc ngày {new Date(reportDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</h2>
           <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full ml-auto">{tasks.length} tasks</span>
           {!isReadOnly && (
             <button onClick={() => setShowAddTask(!showAddTask)}

@@ -49,6 +49,7 @@ const menuItems: MenuItem[] = [
     section: "ĐIỀU HÀNH",
     children: [
       { label: "Trung tâm điều hành", href: "/admin", icon: Bot },
+      { label: "Báo cáo chiến lược", href: "/admin/bao-cao-chien-luoc", icon: Brain },
       { label: "Báo cáo tài chính", href: "/admin/bao-cao-tai-chinh", icon: FileSpreadsheet },
       { label: "Tổng quan OKR", href: "/admin/tong-quan-okr", icon: GitBranch },
       { label: "Phòng ban", href: "/admin/phong-ban", icon: Building2 },

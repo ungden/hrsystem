@@ -159,24 +159,41 @@ export async function deptCreateDailyTasks(managerId: number, monthNumber: numbe
         { title: 'Liên hệ khách hàng mới', kpi_metric: 'contacts', kpi_target: '10', kpi_unit: 'khách' },
         { title: 'Chốt đơn hàng', kpi_metric: 'orders', kpi_target: '3', kpi_unit: 'đơn' },
         { title: 'Chăm sóc khách hàng cũ', kpi_metric: 'followups', kpi_target: '5', kpi_unit: 'khách' },
+        { title: 'Tư vấn sản phẩm qua chat', kpi_metric: 'chat_replies', kpi_target: '15', kpi_unit: 'tin nhắn' },
+        { title: 'Báo cáo doanh số kênh', kpi_metric: 'channel_reports', kpi_target: '1', kpi_unit: 'báo cáo' },
       ],
       'Marketing': [
-        { title: 'Tạo content marketing', kpi_metric: 'content_pieces', kpi_target: '2', kpi_unit: 'bài' },
-        { title: 'Chạy quảng cáo & tối ưu', kpi_metric: 'roas', kpi_target: '5', kpi_unit: 'x' },
-        { title: 'Phân tích hiệu quả kênh', kpi_metric: 'reports', kpi_target: '1', kpi_unit: 'báo cáo' },
+        { title: 'Tạo content cho social media', kpi_metric: 'content_pieces', kpi_target: '3', kpi_unit: 'bài' },
+        { title: 'Quản lý quảng cáo Facebook/IG', kpi_metric: 'roas', kpi_target: '3', kpi_unit: 'x' },
+        { title: 'Phân tích hiệu quả kênh bán', kpi_metric: 'reports', kpi_target: '1', kpi_unit: 'báo cáo' },
+        { title: 'Chăm sóc cộng đồng & UGC', kpi_metric: 'community_interactions', kpi_target: '10', kpi_unit: 'tương tác' },
+      ],
+      'Thiết kế': [
+        { title: 'Thiết kế sản phẩm BST mới', kpi_metric: 'designs', kpi_target: '2', kpi_unit: 'mẫu' },
+        { title: 'Thiết kế content marketing', kpi_metric: 'marketing_visuals', kpi_target: '3', kpi_unit: 'visual' },
+        { title: 'Review chất lượng in/thêu', kpi_metric: 'quality_checks', kpi_target: '5', kpi_unit: 'sản phẩm' },
       ],
       'Vận hành': [
-        { title: 'Xử lý đơn hàng & giao vận', kpi_metric: 'orders_processed', kpi_target: '20', kpi_unit: 'đơn' },
-        { title: 'Kiểm kê & quản lý kho', kpi_metric: 'inventory_checks', kpi_target: '1', kpi_unit: 'lần' },
+        { title: 'Xử lý đơn hàng & đóng gói', kpi_metric: 'orders_processed', kpi_target: '20', kpi_unit: 'đơn' },
+        { title: 'Kiểm kê tồn kho', kpi_metric: 'inventory_checks', kpi_target: '1', kpi_unit: 'lần' },
+        { title: 'Quản lý giao vận', kpi_metric: 'shipments_tracked', kpi_target: '15', kpi_unit: 'đơn' },
+        { title: 'Cập nhật hệ thống kho', kpi_metric: 'stock_updates', kpi_target: '1', kpi_unit: 'lần' },
       ],
       'Kế toán': [
-        { title: 'Ghi nhận công nợ & thu chi', kpi_metric: 'entries', kpi_target: '15', kpi_unit: 'bút toán' },
+        { title: 'Ghi nhận thu chi & công nợ', kpi_metric: 'entries', kpi_target: '15', kpi_unit: 'bút toán' },
         { title: 'Đối soát ngân hàng', kpi_metric: 'reconciliations', kpi_target: '1', kpi_unit: 'lần' },
+        { title: 'Theo dõi công nợ khách hàng', kpi_metric: 'debt_followups', kpi_target: '5', kpi_unit: 'khách' },
+      ],
+      'Ban Giám đốc': [
+        { title: 'Review doanh thu & KPI ngày hôm trước', kpi_metric: 'kpi_reviews', kpi_target: '1', kpi_unit: 'báo cáo' },
+        { title: 'Duyệt nội dung marketing/ads', kpi_metric: 'content_approvals', kpi_target: '3', kpi_unit: 'nội dung' },
+        { title: 'Review đơn hàng & tỷ lệ hoàn', kpi_metric: 'order_reviews', kpi_target: '1', kpi_unit: 'báo cáo' },
+        { title: 'Họp sync team / coaching', kpi_metric: 'team_syncs', kpi_target: '1', kpi_unit: 'buổi' },
       ],
     };
 
     const defaultTemplates = [
-      { title: 'Nhiệm vụ hàng ngày', kpi_metric: 'tasks_done', kpi_target: '3', kpi_unit: 'task' },
+      { title: 'Nhiệm vụ hàng ngày', kpi_metric: 'tasks_done', kpi_target: '3', kpi_unit: 'việc' },
     ];
 
     for (const emp of teamMembers) {
@@ -243,19 +260,19 @@ function buildAdaptiveInfo(
   const notes: string[] = [];
 
   if (month) {
-    notes.push(`Thang: ${month.actual}/${month.target} ${unit} (${month.pctAchieved}%)`);
+    notes.push(`Tháng: ${month.actual}/${month.target} ${unit} (${month.pctAchieved}%)`);
     if (month.pctAchieved < 50 && ctx.pace.workingDaysRemaining <= 10) {
       priority = 'high';
       adjustedTarget = Math.ceil(adjustedTarget * 1.15); // Push 15% harder
-      notes.push('Can tang toc de dat target thang');
+      notes.push('Cần tăng tốc để đạt target tháng');
     } else if (month.pctAchieved >= 90) {
       priority = 'low';
-      notes.push('Gan dat target thang, tap trung chat luong');
+      notes.push('Gần đạt target tháng, tập trung chất lượng');
     }
   }
 
   if (week) {
-    notes.push(`Tuan: ${week.actual}/${week.target} ${unit}, con ${week.remaining} trong ${week.daysLeft} ngay`);
+    notes.push(`Tuần: ${week.actual}/${week.target} ${unit}, còn ${week.remaining} trong ${week.daysLeft} ngày`);
     if (week.daysLeft > 0 && week.remaining > 0) {
       const weekPace = Math.ceil(week.remaining / week.daysLeft);
       if (weekPace > adjustedTarget) adjustedTarget = weekPace;
@@ -265,20 +282,20 @@ function buildAdaptiveInfo(
   if (yesterday) {
     const yPct = yesterday.target > 0 ? Math.round((yesterday.actual / yesterday.target) * 100) : 0;
     if (yPct < 80) {
-      notes.push(`Hom qua: ${yesterday.actual}/${yesterday.target} ${unit} (${yPct}%) - can bu`);
+      notes.push(`Hôm qua: ${yesterday.actual}/${yesterday.target} ${unit} (${yPct}%) — cần bù`);
       if (priority === 'medium') priority = 'high';
     } else if (yPct >= 120) {
-      notes.push(`Hom qua: vuot target (${yPct}%) - tot!`);
+      notes.push(`Hôm qua: vượt target (${yPct}%) — tốt!`);
     }
   }
 
   const rationale = ctx.pace.workingDaysRemaining > 0
-    ? `Con ${ctx.pace.workingDaysRemaining} ngay lam viec. ${month ? `Can ${adjustedTarget} ${unit}/ngay de dat ${month.target} ${unit}/thang.` : ''}`
-    : 'Ngay cuoi thang.';
+    ? `Còn ${ctx.pace.workingDaysRemaining} ngày làm việc. ${month ? `Cần ${adjustedTarget} ${unit}/ngày để đạt ${month.target} ${unit}/tháng.` : ''}`
+    : 'Ngày cuối tháng.';
 
   return {
     adjustedTarget: Math.max(1, adjustedTarget),
-    contextNote: notes.join(' | ') || `Target co ban: ${baseTarget} ${unit}/ngay`,
+    contextNote: notes.join(' | ') || `Target cơ bản: ${baseTarget} ${unit}/ngày`,
     rationale,
     priority,
   };
@@ -287,89 +304,220 @@ function buildAdaptiveInfo(
 const DEPT_TEMPLATES: Record<string, TaskTemplate[]> = {
   'Sales': [
     {
-      title: 'Lien he khach hang moi',
-      kpi_metric: 'contacts', kpi_target: 10, kpi_unit: 'khach', points: 15,
+      title: 'Liên hệ khách hàng mới',
+      kpi_metric: 'contacts', kpi_target: 10, kpi_unit: 'khách', points: 15,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'contacts', 10, 'khach');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'contacts', 10, 'khách');
+        const desc = 'Quét leads từ Website D2C, IG DM, FB Inbox, Shopee chat. Đánh giá tiềm năng (quan tâm BST nào, ngân sách). Ghi nhận vào CRM với tag nguồn kênh. Follow-up trong vòng 2 giờ kể từ lúc khách nhắn.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Teeworld cần 10 leads/ngày để duy trì pipeline bán hàng 5 kênh. ${info.rationale}` };
       },
     },
     {
-      title: 'Chot don hang',
-      kpi_metric: 'orders', kpi_target: 3, kpi_unit: 'don', points: 20,
+      title: 'Chốt đơn hàng',
+      kpi_metric: 'orders', kpi_target: 3, kpi_unit: 'đơn', points: 20,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'orders', 3, 'don');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'orders', 3, 'đơn');
+        const desc = 'Xử lý các đơn hàng đang chờ xác nhận trên tất cả kênh (Website, FB, Shopee, B2B). Xác nhận thanh toán, phối hợp với Kho để đóng gói. Cập nhật trạng thái đơn hàng trên hệ thống và thông báo khách.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Mục tiêu 20 tỷ/năm cần trung bình 3 đơn/ngày/nhân viên Sales. ${info.rationale}` };
       },
     },
     {
-      title: 'Cham soc khach hang cu',
-      kpi_metric: 'followups', kpi_target: 5, kpi_unit: 'khach', points: 10,
+      title: 'Chăm sóc khách hàng cũ',
+      kpi_metric: 'followups', kpi_target: 5, kpi_unit: 'khách', points: 10,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'followups', 5, 'khach');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'followups', 5, 'khách');
+        const desc = 'Liên hệ khách đã mua trong 30 ngày qua qua Zalo/điện thoại. Hỏi feedback sản phẩm, giới thiệu BST mới (Saigonese, Happy Sunday, Texture Studio). Ghi chú phản hồi và cơ hội upsell vào CRM.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Khách cũ có tỷ lệ chuyển đổi cao gấp 3x khách mới. Chăm sóc 5 khách/ngày duy trì retention rate. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Tư vấn sản phẩm qua chat',
+      kpi_metric: 'chat_replies', kpi_target: 15, kpi_unit: 'tin nhắn', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'chat_replies', 15, 'tin nhắn');
+        const desc = 'Trả lời tất cả tin nhắn tư vấn trên các kênh (Website livechat, FB Messenger, IG DM, Shopee chat) trong vòng 15 phút. Gợi ý size/form phù hợp, upsell phụ kiện retro/streetwear. Gửi hình thực tế nếu khách yêu cầu.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Tốc độ phản hồi chat quyết định tỷ lệ chốt đơn. Target 15 tin/ngày cover 5 kênh bán hàng. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Báo cáo doanh số kênh',
+      kpi_metric: 'channel_reports', kpi_target: 1, kpi_unit: 'báo cáo', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'channel_reports', 1, 'báo cáo');
+        const desc = 'Tổng hợp doanh thu từng kênh (Website D2C, Facebook, TikTok/IG, Shopee, B2B). So sánh với ngày hôm trước và cùng kỳ tuần trước. Đánh dấu bất thường (kênh giảm >20%, kênh tăng đột biến). Gửi báo cáo cho Ban Giám đốc trước 10h sáng.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `CEO cần nắm doanh số 5 kênh mỗi ngày để điều phối ngân sách quảng cáo và nhân sự. ${info.rationale}` };
       },
     },
   ],
   'Marketing': [
     {
-      title: 'Tao content marketing',
-      kpi_metric: 'content_pieces', kpi_target: 2, kpi_unit: 'bai', points: 15,
+      title: 'Tạo content cho social media',
+      kpi_metric: 'content_pieces', kpi_target: 3, kpi_unit: 'bài', points: 15,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'content_pieces', 2, 'bai');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'content_pieces', 3, 'bài');
+        const desc = 'Chụp/quay sản phẩm BST hiện tại (áo, quần, phụ kiện). Viết caption theo brand voice Teeworld (fun, retro Saigonese, có quote hay). Lên lịch đăng bài trên FB, IG, TikTok. Đảm bảo đúng tone các sub-brand: Saigonese, Quote, Happy Sunday, Texture Studio.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `3 bài/ngày duy trì tần suất xuất hiện trên newsfeed, hỗ trợ mục tiêu doanh thu 20 tỷ/năm. ${info.rationale}` };
       },
     },
     {
-      title: 'Chay quang cao & toi uu',
-      kpi_metric: 'roas', kpi_target: 5, kpi_unit: 'x', points: 20,
+      title: 'Quản lý quảng cáo Facebook/IG',
+      kpi_metric: 'roas', kpi_target: 3, kpi_unit: 'x', points: 20,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'roas', 5, 'x');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'roas', 3, 'x');
+        const desc = 'Kiểm tra chi phí quảng cáo vs doanh thu từng campaign. Tạm dừng ads ROAS < 2.0, scale budget cho ads ROAS > 4.0. Điều chỉnh audience targeting, thử A/B creative mới. Đảm bảo ROAS tổng >= 3.0 để giữ margin 30%.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `ROAS 3.0 là ngưỡng tối thiểu để đảm bảo biên lợi nhuận 30%. Website D2C (40.9% margin) ưu tiên scale trước. ${info.rationale}` };
       },
     },
     {
-      title: 'Phan tich hieu qua kenh',
-      kpi_metric: 'reports', kpi_target: 1, kpi_unit: 'bao cao', points: 10,
+      title: 'Phân tích hiệu quả kênh bán',
+      kpi_metric: 'reports', kpi_target: 1, kpi_unit: 'báo cáo', points: 10,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'reports', 1, 'bao cao');
-        return { ...info, titleSuffix: '' };
-      },
-    },
-  ],
-  'Van hanh': [
-    {
-      title: 'Xu ly don hang & giao van',
-      kpi_metric: 'orders_processed', kpi_target: 20, kpi_unit: 'don', points: 25,
-      contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'orders_processed', 20, 'don');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'reports', 1, 'báo cáo');
+        const desc = 'Tổng hợp metrics hàng ngày của 5 kênh: doanh thu, số đơn, AOV (giá trị đơn trung bình), ROAS theo kênh. So sánh xu hướng tuần. Xác định kênh nào cần tăng/giảm ngân sách. Gửi báo cáo cho CEO và Sales trước 11h.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Dữ liệu kênh giúp tối ưu phân bổ ngân sách: Website 40.9% > FB 35.1% > B2B 30.7% > TikTok 26.4% > Shopee 18.5% margin. ${info.rationale}` };
       },
     },
     {
-      title: 'Kiem ke & quan ly kho',
-      kpi_metric: 'inventory_checks', kpi_target: 1, kpi_unit: 'lan', points: 20,
+      title: 'Chăm sóc cộng đồng & UGC',
+      kpi_metric: 'community_interactions', kpi_target: 10, kpi_unit: 'tương tác', points: 10,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'inventory_checks', 1, 'lan');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'community_interactions', 10, 'tương tác');
+        const desc = 'Trả lời comment trên FB/IG/TikTok trong vòng 1 giờ. Repost ảnh khách mặc đồ Teeworld (UGC) lên story. Tương tác với brand mentions, hashtag #teeworld. Xây dựng cộng đồng yêu thời trang retro/streetwear Sài Gòn.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `UGC và cộng đồng tạo social proof miễn phí, giảm chi phí quảng cáo dài hạn. 10 tương tác/ngày là mức tối thiểu. ${info.rationale}` };
       },
     },
   ],
-  'Ke toan': [
+  'Thiết kế': [
     {
-      title: 'Ghi nhan cong no & thu chi',
-      kpi_metric: 'entries', kpi_target: 15, kpi_unit: 'but toan', points: 25,
+      title: 'Thiết kế sản phẩm BST mới',
+      kpi_metric: 'designs', kpi_target: 2, kpi_unit: 'mẫu', points: 20,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'entries', 15, 'but toan');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'designs', 2, 'mẫu');
+        const desc = 'Nghiên cứu xu hướng thời trang retro/streetwear hiện tại. Phác thảo mẫu mới cho BST tháng này. Sử dụng AI tools (Banana Pro 2) để iterate nhanh. Chuẩn bị tech pack chi tiết (chất liệu, màu sắc, size chart) cho xưởng sản xuất.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `12 BST/năm = 1 BST/tháng. Cần 2 mẫu/ngày để kịp timeline ra BST đúng hẹn. ${info.rationale}` };
       },
     },
     {
-      title: 'Doi soat ngan hang',
-      kpi_metric: 'reconciliations', kpi_target: 1, kpi_unit: 'lan', points: 20,
+      title: 'Thiết kế content marketing',
+      kpi_metric: 'marketing_visuals', kpi_target: 3, kpi_unit: 'visual', points: 15,
       contextBuilder: (ctx) => {
-        const info = buildAdaptiveInfo(ctx, 'reconciliations', 1, 'lan');
-        return { ...info, titleSuffix: '' };
+        const info = buildAdaptiveInfo(ctx, 'marketing_visuals', 3, 'visual');
+        const desc = 'Thiết kế banner cho Website/social media, edit ảnh sản phẩm chuyên nghiệp. Đảm bảo nhất quán thương hiệu Teeworld (font, màu, tone retro Saigonese). Xuất file đúng kích thước cho từng platform (FB, IG story, TikTok, Shopee).';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Marketing cần 3 visual/ngày cho content social media. Chất lượng hình ảnh ảnh hưởng trực tiếp đến tỷ lệ chuyển đổi. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Review chất lượng in/thêu',
+      kpi_metric: 'quality_checks', kpi_target: 5, kpi_unit: 'sản phẩm', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'quality_checks', 5, 'sản phẩm');
+        const desc = 'Kiểm tra chất lượng in/thêu trên sản phẩm thực tế so với file thiết kế gốc. Đánh giá màu sắc, độ sắc nét, vị trí đặt hình. Đánh dấu lỗi và gửi feedback cho xưởng sản xuất trước khi ship hàng.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `QC trước khi ship giảm tỷ lệ hoàn hàng. 5 sản phẩm/ngày cover các mẫu đang sản xuất. ${info.rationale}` };
+      },
+    },
+  ],
+  'Vận hành': [
+    {
+      title: 'Xử lý đơn hàng & đóng gói',
+      kpi_metric: 'orders_processed', kpi_target: 20, kpi_unit: 'đơn', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'orders_processed', 20, 'đơn');
+        const desc = 'Pick sản phẩm từ kho theo danh sách đơn hàng mới. Kiểm tra chất lượng từng item trước khi đóng gói. Đóng gói với vật liệu thương hiệu Teeworld (túi, sticker, thiệp cảm ơn). Dán nhãn vận chuyển và bàn giao cho đơn vị giao hàng.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `20 đơn/ngày là công suất cần thiết để xử lý đơn hàng từ 5 kênh bán. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Kiểm kê tồn kho',
+      kpi_metric: 'inventory_checks', kpi_target: 1, kpi_unit: 'lần', points: 15,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'inventory_checks', 1, 'lần');
+        const desc = 'Đếm số lượng các SKU chủ lực (top 20 sản phẩm bán chạy). Cập nhật tồn kho trên hệ thống. Đánh dấu sản phẩm dưới mức tồn kho tối thiểu (min_stock). Báo cáo cho quản lý để lên kế hoạch nhập hàng.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Kiểm kê hàng ngày tránh tình trạng hết hàng hot hoặc tồn kho quá nhiều. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Quản lý giao vận',
+      kpi_metric: 'shipments_tracked', kpi_target: 15, kpi_unit: 'đơn', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'shipments_tracked', 15, 'đơn');
+        const desc = 'Theo dõi trạng thái các đơn hàng đang vận chuyển. Xử lý đơn hoàn/khiếu nại từ khách hàng. Phối hợp với đơn vị vận chuyển (GHN, GHTK, J&T) giải quyết đơn trễ hoặc thất lạc. Cập nhật trạng thái cho Sales.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Theo dõi giao vận giảm tỷ lệ hoàn và tăng trải nghiệm khách hàng. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Cập nhật hệ thống kho',
+      kpi_metric: 'stock_updates', kpi_target: 1, kpi_unit: 'lần', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'stock_updates', 1, 'lần');
+        const desc = 'Đối chiếu tồn kho thực tế với số liệu trên hệ thống. Sửa chênh lệch nếu có, ghi chú lý do. Chuẩn bị danh sách đặt hàng bổ sung cho các SKU sắp hết. Sync tồn kho lên tất cả kênh bán (Website, Shopee, FB).';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Sai lệch tồn kho gây oversell hoặc mất doanh thu. Cập nhật hàng ngày là bắt buộc. ${info.rationale}` };
+      },
+    },
+  ],
+  'Kế toán': [
+    {
+      title: 'Ghi nhận thu chi & công nợ',
+      kpi_metric: 'entries', kpi_target: 15, kpi_unit: 'bút toán', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'entries', 15, 'bút toán');
+        const desc = 'Ghi nhận tất cả giao dịch thu/chi trong ngày từ 5 kênh bán hàng. Đối chiếu với sao kê ngân hàng. Phân loại chi phí (COGS, marketing, vận hành, nhân sự). Cập nhật công nợ nhà cung cấp và khách hàng B2B.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Ghi nhận kịp thời giúp CEO nắm dòng tiền thực tế, đảm bảo margin 30%. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Đối soát ngân hàng',
+      kpi_metric: 'reconciliations', kpi_target: 1, kpi_unit: 'lần', points: 15,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'reconciliations', 1, 'lần');
+        const desc = 'So sánh sao kê ngân hàng với sổ sách nội bộ. Đánh dấu các giao dịch chênh lệch hoặc chưa ghi nhận. Giải quyết các khoản không khớp trong ngày. Báo cáo cho CFO nếu phát hiện bất thường.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Đối soát hàng ngày phát hiện sai sót sớm, tránh tích lũy sai lệch cuối tháng. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Theo dõi công nợ khách hàng',
+      kpi_metric: 'debt_followups', kpi_target: 5, kpi_unit: 'khách', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'debt_followups', 5, 'khách');
+        const desc = 'Kiểm tra danh sách hóa đơn quá hạn từ khách B2B và đại lý. Gửi nhắc thanh toán qua email/Zalo. Escalate cho CEO nếu công nợ quá hạn >30 ngày. Cập nhật trạng thái thu hồi trên hệ thống.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Công nợ quá hạn ảnh hưởng dòng tiền. Theo dõi 5 khách/ngày đảm bảo thu hồi đúng hạn. ${info.rationale}` };
+      },
+    },
+  ],
+  'Ban Giám đốc': [
+    {
+      title: 'Review doanh thu & KPI ngày hôm trước',
+      kpi_metric: 'kpi_reviews', kpi_target: 1, kpi_unit: 'báo cáo', points: 15,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'kpi_reviews', 1, 'báo cáo');
+        const desc = 'Xem lại KPI tất cả phòng ban từ ngày hôm trước: doanh thu theo kênh, số đơn, ROAS, tỷ lệ hoàn. Xác định gap giữa thực tế và mục tiêu. Lên kế hoạch can thiệp cho các chỉ số dưới 80% target.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `CEO cần review KPI mỗi sáng để phản ứng nhanh, giữ nhịp đạt mục tiêu 20 tỷ/năm. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Duyệt nội dung marketing/ads',
+      kpi_metric: 'content_approvals', kpi_target: 3, kpi_unit: 'nội dung', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'content_approvals', 3, 'nội dung');
+        const desc = 'Review các bài đăng và campaign quảng cáo đang chờ duyệt. Kiểm tra brand voice (retro Saigonese, fun, có quote), hình ảnh, và thông điệp. Approve hoặc yêu cầu chỉnh sửa. Đảm bảo nhất quán thương hiệu Teeworld trên tất cả kênh.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Brand consistency quyết định nhận diện thương hiệu. CEO duyệt content đảm bảo đúng định hướng. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Review đơn hàng & tỷ lệ hoàn',
+      kpi_metric: 'order_reviews', kpi_target: 1, kpi_unit: 'báo cáo', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'order_reviews', 1, 'báo cáo');
+        const desc = 'Kiểm tra tổng đơn hàng ngày hôm trước, tỷ lệ hoàn hàng, khiếu nại từ khách. Phân tích nguyên nhân hoàn (sai size, chất lượng, giao trễ). Chỉ đạo phòng Vận hành và Sales xử lý các vấn đề phát sinh.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Tỷ lệ hoàn >5% báo động chất lượng sản phẩm hoặc vận hành. CEO cần theo dõi hàng ngày. ${info.rationale}` };
+      },
+    },
+    {
+      title: 'Họp sync team / coaching',
+      kpi_metric: 'team_syncs', kpi_target: 1, kpi_unit: 'buổi', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'team_syncs', 1, 'buổi');
+        const desc = 'Họp standup nhanh 15 phút với các trưởng phòng. Thảo luận blockers, align ưu tiên trong ngày. Coaching cá nhân cho nhân viên cần hỗ trợ. Đảm bảo toàn team 11 người đồng bộ hướng về mục tiêu tháng.';
+        return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Sync hàng ngày giữ 11 nhân viên aligned, phát hiện và giải quyết vấn đề sớm. ${info.rationale}` };
       },
     },
   ],
@@ -377,11 +525,12 @@ const DEPT_TEMPLATES: Record<string, TaskTemplate[]> = {
 
 const DEFAULT_TEMPLATES: TaskTemplate[] = [
   {
-    title: 'Nhiem vu hang ngay',
-    kpi_metric: 'tasks_done', kpi_target: 3, kpi_unit: 'task', points: 15,
+    title: 'Nhiệm vụ hàng ngày',
+    kpi_metric: 'tasks_done', kpi_target: 3, kpi_unit: 'việc', points: 15,
     contextBuilder: (ctx) => {
-      const info = buildAdaptiveInfo(ctx, 'tasks_done', 3, 'task');
-      return { ...info, titleSuffix: '' };
+      const info = buildAdaptiveInfo(ctx, 'tasks_done', 3, 'việc');
+      const desc = 'Hoàn thành các đầu việc được giao trong ngày theo thứ tự ưu tiên. Cập nhật tiến độ trên hệ thống. Báo cáo kết quả cho quản lý trước khi kết thúc ngày làm việc.';
+      return { ...info, titleSuffix: '', contextNote: `${desc} | ${info.contextNote}`, rationale: `Mỗi nhân viên cần hoàn thành tối thiểu 3 việc/ngày để đảm bảo tiến độ chung. ${info.rationale}` };
     },
   },
 ];

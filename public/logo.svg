@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#0f172a"/>
+  <rect x="4" y="4" width="112" height="112" rx="20" fill="url(#grad)" stroke="#334155" stroke-width="1"/>
+  <!-- Stylized "TW" monogram for Teeworld -->
+  <text x="60" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="38" fill="white" letter-spacing="-2">TW</text>
+  <!-- AI indicator dots -->
+  <circle cx="35" cy="72" r="3.5" fill="#38bdf8"/>
+  <circle cx="48" cy="72" r="3.5" fill="#818cf8"/>
+  <circle cx="61" cy="72" r="3.5" fill="#a78bfa"/>
+  <circle cx="74" cy="72" r="3.5" fill="#f472b6"/>
+  <circle cx="87" cy="72" r="3.5" fill="#fb923c"/>
+  <!-- Label -->
+  <text x="60" y="98" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="11" fill="#94a3b8" letter-spacing="3">AI AGENTS</text>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+</svg>

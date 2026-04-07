@@ -9,7 +9,7 @@ import {
   Star, Flame, Brain, Activity, Award,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
-import { fmtVND, fmtPct } from '@/lib/report-builder';
+// Inline format helpers — avoid importing heavy report-builder module
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,21 +88,31 @@ export default function StrategicReportPage() {
   if (loading) return <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /><span className="ml-3 text-base text-slate-500">Đang tải báo cáo...</span></div>;
   if (error || !data) return <div className="flex items-center justify-center h-[60vh]"><AlertTriangle className="w-10 h-10 text-amber-500" /><p className="ml-3 text-base text-slate-600">{error || 'Không có dữ liệu'}</p></div>;
 
-  const s = data.strategyReport;
-  const m = data.marketResearch;
+  // Safe defaults for all data arrays/objects
+  const safeData = {
+    ...data,
+    businessTargets: data.businessTargets || [],
+    departmentDetails: (data.departmentDetails || []).map(d => ({ ...d, topPerformers: d.topPerformers || [], atRiskEmployees: d.atRiskEmployees || [] })),
+    costProjections: data.costProjections || [],
+    channelAnalysis: data.channelAnalysis || [],
+    messages: data.messages || [],
+  };
+
+  const s = data.strategyReport || { strategicAssessment: { overallHealth: 'growing', score: 0, topStrength: '', topWeakness: '', oneLineSummary: '' }, criticalDecisions: [], blindSpots: [], quarterPriorities: [], ceoChallenge: '', messages: [] } as StrategyReport;
+  const m = data.marketResearch || { marketOverview: { totalMarketSize: 0, teeworldMarketShare: 0, growthRate: 0, positionVsCompetitors: '' }, competitorAnalysis: [], trendAlerts: [], opportunities: [], threats: [], messages: [] } as MarketResearch;
   const r = data.report;
-  const health = healthColors[s.strategicAssessment.overallHealth] || healthColors.growing;
+  const health = healthColors[s.strategicAssessment?.overallHealth] || healthColors.growing;
 
   // Aggregate financials
-  const totalRevenue = r?.overview?.revenueYTD || data.businessTargets.find(t => t.category === 'revenue')?.currentValue || 0;
-  const revenueTarget = r?.overview?.revenueTarget || data.businessTargets.find(t => t.category === 'revenue')?.targetValue || 0;
+  const totalRevenue = r?.overview?.revenueYTD || safeData.businessTargets.find(t => t.category === 'revenue')?.currentValue || 0;
+  const revenueTarget = r?.overview?.revenueTarget || safeData.businessTargets.find(t => t.category === 'revenue')?.targetValue || 0;
   const revenuePct = revenueTarget > 0 ? Math.round((totalRevenue / revenueTarget) * 100) : 0;
-  const totalCost = data.costProjections.reduce((s, c) => s + c.totalCost, 0);
+  const totalCost = safeData.costProjections.reduce((s, c) => s + c.totalCost, 0);
   const netProfit = r?.overview?.netProfit || 0;
   const profitMargin = data.financialHealth?.profitMargin || 0;
 
   // Messages by agent role for "discussion" section
-  const agentMessages = data.messages || [];
+  const agentMessages = safeData.messages;
   const ceoMessages = agentMessages.filter((m: any) => m.agentRole === 'ceo');
   const strategyMessages = agentMessages.filter((m: any) => m.agentRole === 'strategy');
   const hrMessages = agentMessages.filter((m: any) => m.agentRole === 'hr_director');
@@ -160,7 +170,7 @@ export default function StrategicReportPage() {
           <KPICard label="Doanh thu YTD" value={fmtB(totalRevenue)} target={fmtB(revenueTarget)} pct={revenuePct} icon={DollarSign} color="blue" />
           <KPICard label="Biên lợi nhuận" value={`${profitMargin}%`} target="≥25%" pct={Math.min(100, Math.round((profitMargin / 25) * 100))} icon={TrendingUp} color="green" />
           <KPICard label="Thị phần" value={`${m.marketOverview.teeworldMarketShare}%`} target="Tăng" pct={65} icon={Globe} color="purple" />
-          <KPICard label="Nhân sự" value={`${data.departmentDetails.reduce((s, d) => s + d.headcount, 0)} NV`} target="Tối ưu" pct={80} icon={Users} color="amber" />
+          <KPICard label="Nhân sự" value={`${safeData.departmentDetails.reduce((s, d) => s + d.headcount, 0)} NV`} target="Tối ưu" pct={80} icon={Users} color="amber" />
         </div>
       </section>
 
@@ -379,8 +389,8 @@ export default function StrategicReportPage() {
         <SectionTitle number="V" title="Chiến lược Kênh bán hàng" icon={ShoppingCart} subtitle="Phân tích hiệu quả từng kênh và đề xuất phân bổ ngân sách" />
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="space-y-4">
-            {data.channelAnalysis.sort((a, b) => b.margin_pct - a.margin_pct).map((ch, i) => {
-              const maxRevenue = Math.max(...data.channelAnalysis.map(c => c.revenue));
+            {safeData.channelAnalysis.sort((a, b) => b.margin_pct - a.margin_pct).map((ch, i) => {
+              const maxRevenue = Math.max(...safeData.channelAnalysis.map(c => c.revenue));
               const pct = maxRevenue > 0 ? (ch.revenue / maxRevenue) * 100 : 0;
               const recColors: Record<string, { bg: string; text: string; label: string }> = {
                 increase: { bg: 'bg-green-100', text: 'text-green-700', label: 'Tăng đầu tư' },
@@ -541,7 +551,7 @@ export default function StrategicReportPage() {
               </tr>
             </thead>
             <tbody>
-              {data.businessTargets.map((t, i) => {
+              {safeData.businessTargets.map((t, i) => {
                 const pct = t.targetValue > 0 ? Math.round((t.currentValue / t.targetValue) * 100) : 0;
                 const si = statusIcons[t.status] || statusIcons.at_risk;
                 const StatusIcon = si.icon;
@@ -573,8 +583,8 @@ export default function StrategicReportPage() {
       <section>
         <SectionTitle number="IX" title="Phân tích Nhân sự & Phòng ban" icon={Users} subtitle="Hiệu suất, chi phí và rủi ro nhân sự từng phòng ban" />
         <div className="space-y-4">
-          {data.departmentDetails.map((dept, i) => {
-            const cost = data.costProjections.find(c => c.department === dept.department);
+          {safeData.departmentDetails.map((dept, i) => {
+            const cost = safeData.costProjections.find(c => c.department === dept.department);
             return (
               <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -591,7 +601,7 @@ export default function StrategicReportPage() {
                     style={{ width: `${dept.completionRate}%` }} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {dept.topPerformers.length > 0 && (
+                  {(dept.topPerformers ?? []).length > 0 && (
                     <div className="bg-green-50 rounded-lg p-3">
                       <div className="text-xs font-semibold text-green-700 mb-1">Top Performers</div>
                       <div className="flex flex-wrap gap-1">
@@ -601,7 +611,7 @@ export default function StrategicReportPage() {
                       </div>
                     </div>
                   )}
-                  {dept.atRiskEmployees.length > 0 && (
+                  {(dept.atRiskEmployees ?? []).length > 0 && (
                     <div className="bg-red-50 rounded-lg p-3">
                       <div className="text-xs font-semibold text-red-700 mb-1">Cần hỗ trợ</div>
                       <div className="flex flex-wrap gap-1">

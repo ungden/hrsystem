@@ -3,10 +3,11 @@ import { agentProfiles } from '@/lib/agents/agent-profiles';
 
 interface AgentAvatarProps {
   role: AgentRole;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
 const sizeMap = {
+  xs: 'w-5 h-5 text-[8px]',
   sm: 'w-7 h-7 text-[10px]',
   md: 'w-9 h-9 text-xs',
   lg: 'w-12 h-12 text-sm',

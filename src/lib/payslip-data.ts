@@ -81,7 +81,7 @@ export async function generatePayslip(employeeId: string, month: number, year: n
     getEmployees(),
     getEmployeeCareers(),
     getFinanceSettings().catch((e) => { console.warn('[Payslip] Không load được cài đặt tài chính:', e.message); return null; }),
-    getPayrolls(`T${month}/${year}`).catch((e) => { console.warn('[Payslip] Không load được bảng lương:', e.message); return []; }),
+    getPayrolls(`T${month}`).catch((e) => { console.warn('[Payslip] Không load được bảng lương:', e.message); return []; }),
     getPerformanceRatings({ employee_id: parseInt(employeeId) }).catch((e) => { console.warn('[Payslip] Không load được đánh giá hiệu suất:', e.message); return []; }),
   ]);
 

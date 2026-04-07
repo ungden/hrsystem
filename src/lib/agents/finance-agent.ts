@@ -8,7 +8,7 @@ export async function runFinanceAgent(goals: DepartmentGoal[]): Promise<{
   messages: AgentMessage[];
 }> {
   const now = new Date();
-  const currentMonth = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  const currentMonth = `T${now.getMonth() + 1}`;
 
   const [employees, employeeCareers, payrolls, financeSettings, performanceRatings] = await Promise.all([
     getEmployees(),

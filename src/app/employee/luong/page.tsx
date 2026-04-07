@@ -12,7 +12,8 @@ export default function MyPayslipPage() {
   const [payroll, setPayroll] = useState<{ base: number; commission: number; kpi_bonus: number; deduction: number; total: number; status: string } | null>(null);
   const [allEmployees, setAllEmployees] = useState<Array<{ id: number; name: string }>>([]);
   const [selectedEmpId, setSelectedEmpId] = useState(getSelectedEmpId());
-  const [month, setMonth] = useState('03/2026');
+  const currentMonth = new Date().getMonth() + 1;
+  const [month, setMonth] = useState(`T${currentMonth}`);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,9 +48,9 @@ export default function MyPayslipPage() {
             </select>
             <select value={month} onChange={e => setMonth(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
-              <option value="03/2026">T3/2026</option>
-              <option value="02/2026">T2/2026</option>
-              <option value="01/2026">T1/2026</option>
+              {Array.from({ length: 12 }, (_, i) => 12 - i).map(m => (
+                <option key={m} value={`T${m}`}>Tháng {m}/2026</option>
+              ))}
             </select>
           </div>
         </div>
@@ -58,7 +59,7 @@ export default function MyPayslipPage() {
       {payroll && employee ? (
         <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
           <div className="text-center border-b border-slate-200 pb-4 mb-4">
-            <h2 className="text-lg font-bold text-slate-800">BẢNG LƯƠNG {month.replace('/', '/T')}</h2>
+            <h2 className="text-lg font-bold text-slate-800">BẢNG LƯƠNG {month}/2026</h2>
             <div className="flex items-center justify-center gap-3 mt-2 text-sm text-slate-600 flex-wrap">
               <span>{employee.name}</span>
               <span className="text-slate-300">|</span>

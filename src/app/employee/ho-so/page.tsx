@@ -27,7 +27,7 @@ export default function MyProfilePage() {
       setLoading(true);
       try {
         const [emps, tasks, pays, leaves] = await Promise.all([
-          getEmployees(), getTasks(), getPayrolls('03/2026'),
+          getEmployees(), getTasks(), getPayrolls(`T${new Date().getMonth() + 1}`),
           getLeaveRequests({ employee_id: selectedEmpId, status: 'approved' }),
         ]);
         setAllEmployees(emps);

@@ -77,7 +77,7 @@ export default function ChamCongPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+        const monthStr = `T${month}`;
         const [emps, att, pay] = await Promise.all([
           getEmployees(),
           getAllAttendanceByMonth(month, year),

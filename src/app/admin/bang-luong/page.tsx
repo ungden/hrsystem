@@ -27,7 +27,8 @@ interface PayrollRow {
 }
 
 export default function PayslipHubPage() {
-  const [month, setMonth] = useState('03/2026');
+  const currentMonth = new Date().getMonth() + 1; // 1-based
+  const [month, setMonth] = useState(`T${currentMonth}`);
   const [payrolls, setPayrolls] = useState<PayrollRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -98,7 +99,7 @@ export default function PayslipHubPage() {
           <select value={month} onChange={e => { setMonth(e.target.value); setSelectedId(null); setLoading(true); }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium">
             {Array.from({ length: 12 }, (_, i) => 12 - i).map(m => {
-              const value = `${String(m).padStart(2, '0')}/2026`;
+              const value = `T${m}`;
               return <option key={value} value={value}>Tháng {m}/2026</option>;
             })}
           </select>
@@ -134,21 +135,21 @@ export default function PayslipHubPage() {
             <div>
               <h3 className="text-sm font-bold text-blue-700 mb-2">I. THU NHẬP</h3>
               <div className="bg-blue-50/50 rounded-lg p-3 space-y-1.5">
-                <div className="flex justify-between text-[13px]"><span className="text-slate-600 pl-6">Lương cơ bản</span><span className="font-medium text-slate-700">{formatCurrency(selected.base)}</span></div>
-                <div className="flex justify-between text-[13px] font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng thu nhập</span><span className="text-slate-800">{formatCurrency(selected.base)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-600 pl-6">Lương cơ bản</span><span className="font-medium text-slate-700">{formatCurrency(selected.base)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng thu nhập</span><span className="text-slate-800">{formatCurrency(selected.base)}</span></div>
               </div>
               <h3 className="text-sm font-bold text-emerald-700 mb-2 mt-4">II. THƯỞNG</h3>
               <div className="bg-emerald-50/50 rounded-lg p-3 space-y-1.5">
-                <div className="flex justify-between text-[13px]"><span className="text-slate-600 pl-6">Hoa hồng / Commission</span><span className="font-medium text-slate-700">{formatCurrency(selected.commission)}</span></div>
-                <div className="flex justify-between text-[13px]"><span className="text-slate-600 pl-6">Thưởng KPI</span><span className="font-medium text-slate-700">{formatCurrency(selected.kpi_bonus)}</span></div>
-                <div className="flex justify-between text-[13px] font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng thưởng</span><span className="text-emerald-700">{formatCurrency(selected.commission + selected.kpi_bonus)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-600 pl-6">Hoa hồng / Commission</span><span className="font-medium text-slate-700">{formatCurrency(selected.commission)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-600 pl-6">Thưởng KPI</span><span className="font-medium text-slate-700">{formatCurrency(selected.kpi_bonus)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng thưởng</span><span className="text-emerald-700">{formatCurrency(selected.commission + selected.kpi_bonus)}</span></div>
               </div>
             </div>
             <div>
               <h3 className="text-sm font-bold text-red-700 mb-2">III. KHẤU TRỪ</h3>
               <div className="bg-red-50/50 rounded-lg p-3 space-y-1.5">
-                <div className="flex justify-between text-[13px]"><span className="text-slate-600 pl-6">BHXH + BHYT + BHTN + Thuế</span><span className="font-medium text-red-600">-{formatCurrency(selected.deduction)}</span></div>
-                <div className="flex justify-between text-[13px] font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng khấu trừ</span><span className="text-red-600">-{formatCurrency(selected.deduction)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-600 pl-6">BHXH + BHYT + BHTN + Thuế</span><span className="font-medium text-red-600">-{formatCurrency(selected.deduction)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2 mt-1"><span className="text-slate-800 pl-2">Tổng khấu trừ</span><span className="text-red-600">-{formatCurrency(selected.deduction)}</span></div>
               </div>
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-5 text-white mt-4">
                 <h3 className="text-sm font-bold text-blue-100 mb-1">IV. THỰC NHẬN</h3>
@@ -186,7 +187,7 @@ export default function PayslipHubPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[10px] text-slate-500 uppercase tracking-wider border-b-2 border-slate-200">
+              <tr className="text-left text-xs text-slate-500 uppercase tracking-wider border-b-2 border-slate-200">
                 <th className="pb-2 pr-2">Nhân viên</th>
                 <th className="pb-2 pr-2">Phòng ban</th>
                 <th className="pb-2 pr-2 text-right">Lương CB</th>
@@ -202,15 +203,15 @@ export default function PayslipHubPage() {
                 <tr key={p.employee_id}
                   className="border-b border-slate-50 hover:bg-blue-50/30 cursor-pointer transition-colors"
                   onClick={() => setSelectedId(p.employee_id)}>
-                  <td className="py-2 pr-2 font-medium text-blue-600 text-[12px]">{p.employeeName}</td>
-                  <td className="py-2 pr-2 text-slate-500 text-[11px]">{p.department}</td>
-                  <td className="py-2 pr-2 text-right text-[12px] text-slate-700">{formatCurrency(p.base)}</td>
-                  <td className="py-2 pr-2 text-right text-[12px] text-slate-500">{formatCurrency(p.commission)}</td>
-                  <td className="py-2 pr-2 text-right text-[12px] text-emerald-600 font-medium">{formatCurrency(p.kpi_bonus)}</td>
-                  <td className="py-2 pr-2 text-right text-[12px] text-red-500">-{formatCurrency(p.deduction)}</td>
-                  <td className="py-2 pr-2 text-right text-[12px] text-blue-700 font-bold">{formatCurrency(p.total)}</td>
+                  <td className="py-2 pr-2 font-medium text-blue-600 text-sm">{p.employeeName}</td>
+                  <td className="py-2 pr-2 text-slate-500 text-sm">{p.department}</td>
+                  <td className="py-2 pr-2 text-right text-sm text-slate-700">{formatCurrency(p.base)}</td>
+                  <td className="py-2 pr-2 text-right text-sm text-slate-500">{formatCurrency(p.commission)}</td>
+                  <td className="py-2 pr-2 text-right text-sm text-emerald-600 font-medium">{formatCurrency(p.kpi_bonus)}</td>
+                  <td className="py-2 pr-2 text-right text-sm text-red-500">-{formatCurrency(p.deduction)}</td>
+                  <td className="py-2 pr-2 text-right text-sm text-blue-700 font-bold">{formatCurrency(p.total)}</td>
                   <td className="py-2 text-center">
-                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
                       p.status === 'Đã thanh toán' ? 'bg-green-100 text-green-700' :
                       p.status === 'Đã duyệt' ? 'bg-blue-100 text-blue-700' :
                       'bg-orange-100 text-orange-700'
@@ -222,7 +223,7 @@ export default function PayslipHubPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-slate-200 font-bold text-[12px]">
+              <tr className="border-t-2 border-slate-200 font-bold text-sm">
                 <td className="py-2 pr-2 text-slate-800" colSpan={2}>Tổng ({filtered.length} NV)</td>
                 <td className="py-2 pr-2 text-right text-slate-700">{formatCurrency(totalBase)}</td>
                 <td className="py-2 pr-2 text-right text-slate-500">{formatCurrency(filtered.reduce((s, p) => s + p.commission, 0))}</td>

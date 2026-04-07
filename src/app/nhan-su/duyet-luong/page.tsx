@@ -99,7 +99,7 @@ export default function DuyetLuongPage() {
     async function load() {
       setLoading(true);
       try {
-        const monthStr = `${String(month).padStart(2, "0")}/${year}`;
+        const monthStr = `T${month}`;
 
         const [employees, payrolls, scores] = await Promise.all([
           getEmployees() as Promise<Employee[]>,

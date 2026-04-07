@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { setSelectedEmpId } from '@/lib/employee-context';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
@@ -12,6 +13,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const router = useRouter();
+
+  /** After login, map auth email → employee record → persist + redirect by role */
+  async function loginAndRoute(authEmail: string) {
+    const supabase = createClient();
+    const { data: emp } = await supabase
+      .from('employees')
+      .select('id, role')
+      .eq('email', authEmail)
+      .eq('status', 'Đang làm việc')
+      .single();
+
+    if (emp) {
+      setSelectedEmpId(emp.id);
+      const isCEO = emp.role?.includes('CEO') || emp.role?.includes('Founder');
+      // CEO/Admin → admin dashboard, NV → employee portal
+      router.push(isCEO ? '/admin' : '/employee');
+    } else {
+      // Authenticated but no employee record → still allow admin access
+      router.push('/admin');
+    }
+    router.refresh();
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +50,9 @@ export default function LoginPage() {
         setError('');
         alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push('/admin');
-        router.refresh();
+        await loginAndRoute(data.user.email || email);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Đã xảy ra lỗi';
@@ -40,12 +62,14 @@ export default function LoginPage() {
     }
   };
 
-  // Demo mode: skip auth
+  // Demo mode: skip auth, set employee context
   const handleDemoAdmin = () => {
+    setSelectedEmpId(1); // CEO - Trần Thiên Dương
     router.push('/admin');
   };
 
   const handleDemoEmployee = () => {
+    setSelectedEmpId(2); // First regular employee
     router.push('/employee');
   };
 
@@ -54,11 +78,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-            <span className="text-white font-bold text-2xl">HR</span>
+          <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+            <span className="text-white font-bold text-2xl">TW</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 mt-4">HR System</h1>
-          <p className="text-sm text-slate-500 mt-1">Hệ thống quản lý nhân sự & điều hành doanh nghiệp</p>
+          <h1 className="text-2xl font-bold text-slate-800 mt-4">Teeworld AI Agents</h1>
+          <p className="text-sm text-slate-500 mt-1">11 AI Agents vận hành doanh nghiệp graphic tees</p>
         </div>
 
         {/* Login Form */}

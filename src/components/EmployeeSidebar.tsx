@@ -46,10 +46,10 @@ export default function EmployeeSidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-slate-100">
         <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold text-sm">HR</span>
+          <span className="text-white font-bold text-sm">TW</span>
         </div>
         <div className="ml-3">
-          <span className="font-bold text-slate-800 text-[15px] leading-tight block">HR System</span>
+          <span className="font-bold text-slate-800 text-[15px] leading-tight block">Teeworld</span>
           <span className="text-[10px] text-emerald-500 leading-tight">Employee Portal</span>
         </div>
       </div>

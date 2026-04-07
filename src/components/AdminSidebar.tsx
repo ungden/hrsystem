@@ -129,12 +129,12 @@ export default function AdminSidebar() {
     <aside className="fixed left-0 top-0 h-screen w-[260px] bg-white border-r border-slate-200/80 flex flex-col z-50 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-slate-100">
-        <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold text-sm">HR</span>
+        <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center shadow-sm">
+          <span className="text-white font-bold text-sm">TW</span>
         </div>
         <div className="ml-3">
-          <span className="font-bold text-slate-800 text-[15px] leading-tight block">HR System</span>
-          <span className="text-[10px] text-slate-400 leading-tight">Admin Panel</span>
+          <span className="font-bold text-slate-800 text-[15px] leading-tight block">Teeworld</span>
+          <span className="text-[10px] text-slate-400 leading-tight">AI Agents</span>
         </div>
       </div>
 

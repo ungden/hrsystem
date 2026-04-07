@@ -71,6 +71,12 @@ export default function InventoryPage() {
         actions={<button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-700"><Plus size={14} /> Thêm</button>}
       />
 
+      {/* Guide */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <span className="text-lg">💡</span>
+        <p className="text-sm text-slate-700">Hàng tồn kho tự cập nhật khi có đơn hàng. <b className="text-red-600">Đỏ</b> = hết hàng, cần đặt ngay. <b className="text-amber-600">Vàng</b> = sắp hết, chuẩn bị đặt.</p>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Package} label="Tổng mặt hàng" value={items.length} color="blue" />
         <StatCard icon={AlertTriangle} label="Sắp hết / Hết" value={lowStockCount} color={lowStockCount > 0 ? 'red' : 'green'} />

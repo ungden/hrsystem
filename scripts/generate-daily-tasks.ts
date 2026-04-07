@@ -162,11 +162,12 @@ async function main(): Promise<void> {
       // Xây dựng ngữ cảnh (context)
       const context = await buildDailyContext(emp.id, date);
 
-      // Tạo task qua AI agent
+      // Tạo task qua AI agent (truyền supabase client cho server context)
       await generateContextualDailyTasks(
         { id: emp.id, name: emp.name, role: emp.role, department: emp.department },
         date,
         context,
+        supabase,
       );
 
       console.log(`${prefix} — ✅ tạo task thành công`);

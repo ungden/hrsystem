@@ -27,13 +27,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminSidebar />
         <button
           onClick={() => setSidebarOpen(false)}
-          className="fixed top-4 left-[268px] z-[70] md:hidden w-8 h-8 bg-white rounded-full border border-slate-200 flex items-center justify-center shadow-sm"
+          className="fixed top-4 left-[248px] z-[70] md:hidden w-8 h-8 bg-white rounded-full border border-slate-200 flex items-center justify-center shadow-sm"
         >
           <X size={16} className="text-slate-500" />
         </button>
       </div>
 
-      <main className="md:ml-[260px] min-h-screen pt-14 md:pt-0">
+      <main className="md:ml-[240px] min-h-screen pt-14 md:pt-0">
         {children}
       </main>
     </>

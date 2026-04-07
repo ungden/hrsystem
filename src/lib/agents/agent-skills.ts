@@ -535,11 +535,13 @@ const DEFAULT_TEMPLATES: TaskTemplate[] = [
   },
 ];
 
-/** Generate contextual daily tasks for one employee based on real performance data */
+/** Generate contextual daily tasks for one employee based on real performance data.
+ *  Pass supabaseClient when calling from server context (cron/API routes). */
 export async function generateContextualDailyTasks(
   employee: { id: number; name: string; role: string; department: string },
   date: string,
   context: DailyContext,
+  supabaseClient?: unknown,
 ): Promise<AgentAction> {
   try {
     const templates = DEPT_TEMPLATES[employee.department] || DEFAULT_TEMPLATES;
@@ -566,7 +568,7 @@ export async function generateContextualDailyTasks(
         target_rationale: adaptive.rationale,
         week_cumulative: context.weekCumulative[tmpl.kpi_metric]?.actual ?? 0,
         month_cumulative: context.monthCumulative[tmpl.kpi_metric]?.actual ?? 0,
-      });
+      }, supabaseClient);
       created++;
     }
 

@@ -17,6 +17,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import PanoramicOrgView from "@/components/PanoramicOrgView";
 import { getEmployees, getTasks, calculateEmployeeScores } from "@/lib/supabase-data";
 import { estimateBonus } from "@/lib/jd-kpi-framework";
 
@@ -251,28 +252,34 @@ function StatCard({
   sub?: string;
   color: string;
 }) {
-  const colorMap: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-600 border-blue-200",
-    green: "bg-emerald-50 text-emerald-600 border-emerald-200",
-    amber: "bg-amber-50 text-amber-600 border-amber-200",
-    red: "bg-red-50 text-red-600 border-red-200",
+  const gradients: Record<string, string> = {
+    blue: "from-blue-500 to-indigo-600",
+    green: "from-emerald-500 to-teal-600",
+    amber: "from-amber-500 to-orange-600",
+    red: "from-red-500 to-rose-600",
   };
-  const iconBg: Record<string, string> = {
-    blue: "bg-blue-100",
-    green: "bg-emerald-100",
-    amber: "bg-amber-100",
-    red: "bg-red-100",
+  const glows: Record<string, string> = {
+    blue: "shadow-blue-500/20",
+    green: "shadow-emerald-500/20",
+    amber: "shadow-amber-500/20",
+    red: "shadow-red-500/20",
+  };
+  const bgClass: Record<string, string> = {
+    blue: "metric-blue",
+    green: "metric-emerald",
+    amber: "metric-amber",
+    red: "metric-red",
   };
 
   return (
-    <div className={`rounded-xl border p-5 ${colorMap[color]}`}>
+    <div className={`rounded-2xl p-5 ${bgClass[color]} transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
       <div className="flex items-center gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-lg ${iconBg[color]} flex items-center justify-center`}>
-          <Icon size={20} />
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradients[color]} flex items-center justify-center shadow-lg ${glows[color]}`}>
+          <Icon size={20} className="text-white" />
         </div>
         <span className="text-sm font-medium text-slate-600">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
       {sub && <p className="text-sm text-slate-500 mt-1">{sub}</p>}
     </div>
   );
@@ -280,19 +287,19 @@ function StatCard({
 
 function ProgressBar({ percent, size = "md" }: { percent: number; size?: "sm" | "md" }) {
   const height = size === "sm" ? "h-1.5" : "h-2.5";
-  const color =
+  const gradient =
     percent >= 80
-      ? "bg-emerald-500"
+      ? "from-emerald-400 to-teal-500"
       : percent >= 60
-        ? "bg-blue-500"
+        ? "from-blue-400 to-indigo-500"
         : percent >= 40
-          ? "bg-amber-500"
-          : "bg-red-500";
+          ? "from-amber-400 to-orange-500"
+          : "from-red-400 to-rose-500";
 
   return (
-    <div className={`w-full bg-slate-200 rounded-full ${height}`}>
+    <div className={`w-full bg-slate-200/60 rounded-full ${height} overflow-hidden`}>
       <div
-        className={`${color} ${height} rounded-full transition-all duration-500`}
+        className={`bg-gradient-to-r ${gradient} ${height} rounded-full transition-all duration-700`}
         style={{ width: `${Math.min(percent, 100)}%` }}
       />
     </div>
@@ -301,22 +308,19 @@ function ProgressBar({ percent, size = "md" }: { percent: number; size?: "sm" | 
 
 function AlertCard({ alert }: { alert: HRAlert }) {
   const Icon = alert.icon;
-  const colorMap = {
-    danger: "border-red-200 bg-red-50",
-    warning: "border-amber-200 bg-amber-50",
-    success: "border-emerald-200 bg-emerald-50",
-    info: "border-blue-200 bg-blue-50",
+  const config = {
+    danger: { bg: "from-red-50 to-rose-50/50", border: "border-red-200/60", icon: "bg-red-100 text-red-600" },
+    warning: { bg: "from-amber-50 to-yellow-50/50", border: "border-amber-200/60", icon: "bg-amber-100 text-amber-600" },
+    success: { bg: "from-emerald-50 to-teal-50/50", border: "border-emerald-200/60", icon: "bg-emerald-100 text-emerald-600" },
+    info: { bg: "from-blue-50 to-indigo-50/50", border: "border-blue-200/60", icon: "bg-blue-100 text-blue-600" },
   };
-  const iconColor = {
-    danger: "text-red-500",
-    warning: "text-amber-500",
-    success: "text-emerald-500",
-    info: "text-blue-500",
-  };
+  const c = config[alert.type];
 
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-lg border ${colorMap[alert.type]}`}>
-      <Icon size={20} className={`flex-shrink-0 mt-0.5 ${iconColor[alert.type]}`} />
+    <div className={`flex items-start gap-3 p-4 rounded-xl border bg-gradient-to-r ${c.bg} ${c.border} transition-all hover:shadow-md`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${c.icon}`}>
+        <Icon size={16} />
+      </div>
       <p className="text-sm text-slate-700 leading-relaxed">{alert.message}</p>
     </div>
   );
@@ -423,8 +427,12 @@ export default function HRAgentPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[500px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span className="ml-3 text-base text-slate-500">Đang tải dữ liệu HR Agent...</span>
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30 animate-pulse">
+            <Loader2 className="w-6 h-6 animate-spin text-white" />
+          </div>
+          <span className="text-sm text-slate-400">Đang tải dữ liệu HR Agent...</span>
+        </div>
       </div>
     );
   }
@@ -433,8 +441,10 @@ export default function HRAgentPage() {
     return (
       <div className="p-6 flex items-center justify-center min-h-[500px]">
         <div className="text-center">
-          <ShieldAlert className="w-12 h-12 text-red-400 mx-auto mb-3" />
-          <p className="text-base text-slate-600">{error}</p>
+          <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="w-7 h-7 text-red-400" />
+          </div>
+          <p className="text-sm text-slate-600">{error}</p>
         </div>
       </div>
     );
@@ -452,8 +462,33 @@ export default function HRAgentPage() {
         ]}
       />
 
+      {/* Guide */}
+      <div className="rounded-2xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 p-4 mb-5 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-500/20">
+          <span className="text-white text-xs">💡</span>
+        </div>
+        <p className="text-sm text-slate-700">AI đánh giá KPI từng nhân viên dựa trên task hàng ngày. <b className="text-red-600">Đỏ</b> = cần coaching ngay. <b className="text-emerald-600">Xanh</b> = xuất sắc. Click vào tên nhân viên để xem chi tiết.</p>
+      </div>
+
+      {/* Panoramic Bubble Map */}
+      <div className="mb-6">
+        <PanoramicOrgView
+          departments={deptAnalysis.map(d => ({
+            name: d.name,
+            headcount: d.members.length,
+            avgKPI: d.avgKpi,
+            completionRate: d.completionRate,
+          }))}
+          employees={enriched.map(e => ({
+            name: e.employee.name,
+            department: e.employee.department,
+            kpiScore: e.kpiScore,
+          }))}
+        />
+      </div>
+
       {/* ═══════ Section 1: Stats Cards ═══════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-children">
         <StatCard
           icon={Users}
           label="Tổng nhân viên"
@@ -486,7 +521,7 @@ export default function HRAgentPage() {
 
       {/* ═══════ Section 2: Employee Table ═══════ */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Bảng nhân sự chi tiết</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Bảng nhân sự chi tiết</h2>
 
         {/* Filters */}
         <div className="flex gap-3 mb-4 flex-wrap">
@@ -497,13 +532,13 @@ export default function HRAgentPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm nhân viên..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all"
             />
           </div>
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
           >
             <option value="">Tất cả phòng ban</option>
             {departments.map((d) => (
@@ -515,31 +550,31 @@ export default function HRAgentPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">
+                <tr className="bg-gradient-to-r from-slate-50 to-slate-100/80 border-b border-slate-200">
+                  <th className="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Nhân viên
                   </th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">
+                  <th className="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Vai trò
                   </th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600 min-w-[160px]">
+                  <th className="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[160px]">
                     Tasks
                   </th>
-                  <th className="text-center px-4 py-3 text-sm font-semibold text-slate-600">
-                    Điểm KPI
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    KPI
                   </th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600">
-                    Thưởng dự kiến
+                  <th className="text-right px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Thưởng
                   </th>
-                  <th className="text-center px-4 py-3 text-sm font-semibold text-slate-600">
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th className="text-center px-4 py-3 text-sm font-semibold text-slate-600">
-                    Canh bao
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Alert
                   </th>
                 </tr>
               </thead>
@@ -657,21 +692,23 @@ export default function HRAgentPage() {
 
       {/* ═══════ Section 3: HR Agent Alerts ═══════ */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Cảnh báo HR Agent</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Phan tich tu dong dua tren du lieu thuc te thang {currentMonth}
+        <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Cảnh báo HR Agent</h2>
+        <p className="text-sm text-slate-400 mb-4">
+          Phân tích tự động dựa trên dữ liệu thực tế tháng {currentMonth}
         </p>
 
         {alerts.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-children">
             {alerts.map((alert, i) => (
               <AlertCard key={i} alert={alert} />
             ))}
           </div>
         ) : (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center">
-            <CheckCircle2 size={28} className="text-emerald-500 mx-auto mb-2" />
-            <p className="text-base text-slate-600">
+          <div className="rounded-2xl bg-gradient-to-r from-emerald-50/80 to-teal-50/50 border border-emerald-200/60 p-6 text-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/20">
+              <CheckCircle2 size={22} className="text-white" />
+            </div>
+            <p className="text-sm font-medium text-slate-600">
               Không có cảnh báo nào. Tất cả nhân viên đang hoạt động tốt.
             </p>
           </div>
@@ -680,16 +717,18 @@ export default function HRAgentPage() {
 
       {/* ═══════ Section 4: Department Analysis ═══════ */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Phân tích theo phòng ban</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Phân tích theo phòng ban</h2>
 
-        <div className="space-y-4">
+        <div className="space-y-4 stagger-children">
           {deptAnalysis.map((dept) => {
             const isExpanded = expandedDept === dept.name;
+            const kpiGrad = dept.avgKpi >= 85 ? "from-emerald-500 to-teal-600" : dept.avgKpi >= 65 ? "from-blue-500 to-indigo-600" : dept.avgKpi >= 40 ? "from-amber-500 to-orange-600" : "from-red-500 to-rose-600";
+            const kpiGlow = dept.avgKpi >= 85 ? "shadow-emerald-500/20" : dept.avgKpi >= 65 ? "shadow-blue-500/20" : dept.avgKpi >= 40 ? "shadow-amber-500/20" : "shadow-red-500/20";
 
             return (
               <div
                 key={dept.name}
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+                className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm transition-all hover:shadow-md"
               >
                 {/* Department header */}
                 <button
@@ -697,20 +736,20 @@ export default function HRAgentPage() {
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                      <Building2 size={20} className="text-slate-600" />
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${kpiGrad} flex items-center justify-center shadow-lg ${kpiGlow}`}>
+                      <Building2 size={18} className="text-white" />
                     </div>
                     <div className="text-left">
                       <h3 className="text-base font-semibold text-slate-800">{dept.name}</h3>
-                      <p className="text-sm text-slate-400">
-                        {dept.members.length} thanh vien
+                      <p className="text-xs text-slate-400">
+                        {dept.members.length} thành viên
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-sm text-slate-400">KPI TB</p>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">KPI TB</p>
                       <p
                         className={`text-base font-bold ${
                           dept.avgKpi >= 85
@@ -726,7 +765,7 @@ export default function HRAgentPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-slate-400">Hoàn thành</p>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Hoàn thành</p>
                       <p className="text-base font-bold text-slate-700">{dept.completionRate}%</p>
                     </div>
                     {isExpanded ? (
@@ -739,11 +778,11 @@ export default function HRAgentPage() {
 
                 {/* Expanded content */}
                 {isExpanded && (
-                  <div className="border-t border-slate-200 px-5 py-4">
+                  <div className="border-t border-slate-100 px-5 py-4">
                     {/* Recommendation */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div className="rounded-xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 p-3.5 mb-4">
                       <p className="text-sm text-slate-700">
-                        <span className="font-semibold text-blue-700">HR Agent: </span>
+                        <span className="font-semibold text-indigo-700">HR Agent: </span>
                         {dept.recommendation}
                       </p>
                     </div>

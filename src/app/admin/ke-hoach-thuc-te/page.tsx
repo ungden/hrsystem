@@ -133,6 +133,12 @@ export default function PlanVsActualPage() {
         ]}
       />
 
+      {/* Guide */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <span className="text-lg">💡</span>
+        <p className="text-sm text-slate-700">So sánh kế hoạch đầu tháng với kết quả thực tế. Cột <b className="text-emerald-600">xanh</b> = đạt/vượt. Cột <b className="text-red-600">đỏ</b> = chưa đạt. Xem phòng ban nào đang trễ tiến độ.</p>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-2 mb-5">
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}

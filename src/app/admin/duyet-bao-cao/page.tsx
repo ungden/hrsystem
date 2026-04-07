@@ -181,6 +181,12 @@ export default function ApproveReportsPage() {
         breadcrumbs={[{ label: 'AI Agents', href: '/admin' }, { label: 'Duyệt báo cáo' }]}
       />
 
+      {/* Guide */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <span className="text-lg">💡</span>
+        <p className="text-sm text-slate-700">Nhân viên nộp báo cáo cuối ngày ở đây. Click vào báo cáo để xem chi tiết kết quả từng task, rồi <b>Duyệt</b> hoặc yêu cầu bổ sung.</p>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Clock} label="Chờ duyệt" value={submittedCount} color="blue" />

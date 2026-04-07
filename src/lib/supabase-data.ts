@@ -22,8 +22,9 @@ export async function getEmployee(id: number) {
   return data;
 }
 
-export async function getTasks(filters?: { assignee_id?: number; status?: string; department?: string; month_number?: number }) {
-  let query = getSupabase().from('tasks').select('*');
+export async function getTasks(filters?: { assignee_id?: number; status?: string; department?: string; month_number?: number }, supabaseClient?: unknown) {
+  const supabase = (supabaseClient || getSupabase()) as ReturnType<typeof getSupabase>;
+  let query = supabase.from('tasks').select('*');
   if (filters?.assignee_id) query = query.eq('assignee_id', filters.assignee_id);
   if (filters?.status) query = query.eq('status', filters.status);
   if (filters?.department) query = query.eq('department', filters.department);
@@ -795,8 +796,8 @@ export async function createTask(task: {
   kpi_metric?: string; kpi_target?: string; kpi_unit?: string;
   context_note?: string; adjusted_target?: number; target_rationale?: string;
   week_cumulative?: number; month_cumulative?: number; channel?: string;
-}) {
-  const supabase = getSupabase();
+}, supabaseClient?: unknown) {
+  const supabase = (supabaseClient || getSupabase()) as ReturnType<typeof getSupabase>;
 
   // Validate: assignee must exist and be active
   const { data: assignee } = await supabase.from('employees').select('id, department, status')
@@ -844,7 +845,7 @@ export async function createTask(task: {
   const weekNum = Math.ceil(dayOfMonth / 7);
 
   // Warning: check monthly point budget (900 pts planned)
-  const existingTasks = await getTasks({ assignee_id: task.assignee_id, month_number: monthNum });
+  const existingTasks = await getTasks({ assignee_id: task.assignee_id, month_number: monthNum }, supabaseClient);
   const existingPoints = existingTasks.reduce((s: number, t: { points: number; source: string }) =>
     t.source === 'planned' ? s + (t.points || 0) : s, 0);
   const newPoints = task.points || 0;
@@ -1120,14 +1121,40 @@ export async function getAllAttendanceByMonth(month: number, year: number) {
   return data || [];
 }
 
-// ============ EMPLOYEE SCORING (from Supabase tasks) ============
+// ============ EMPLOYEE SCORING (hybrid: performance_ratings + task data) ============
 
 export async function calculateEmployeeScores(monthNumber?: number) {
-  const [employees, tasks] = await Promise.all([
+  const [employees, tasks, ratingsData] = await Promise.all([
     getEmployees(),
     getTasks(monthNumber ? { month_number: monthNumber } : undefined),
+    getSupabase().from('performance_ratings').select('employee_id, kpi_score, period')
+      .order('created_at', { ascending: false }),
   ]);
 
+  const ratings = ratingsData.data || [];
+
+  // Build a map of latest performance rating per employee
+  const ratingMap = new Map<number, number>();
+  // Determine current period for matching (e.g., "T4/2026" for month 4)
+  const currentPeriod = monthNumber ? `T${monthNumber}/2026` : null;
+  const currentQuarter = monthNumber ? `Q${Math.ceil(monthNumber / 3)}/2026` : null;
+
+  ratings.forEach((r: { employee_id: number; kpi_score: number; period: string }) => {
+    // Prefer current month rating, then current quarter, then any latest
+    if (!ratingMap.has(r.employee_id)) {
+      ratingMap.set(r.employee_id, r.kpi_score);
+    }
+    // Override with more specific period match
+    if (currentPeriod && r.period === currentPeriod) {
+      ratingMap.set(r.employee_id, r.kpi_score);
+    } else if (currentQuarter && r.period === currentQuarter && !ratings.some(
+      (r2: { employee_id: number; period: string }) => r2.employee_id === r.employee_id && r2.period === currentPeriod
+    )) {
+      ratingMap.set(r.employee_id, r.kpi_score);
+    }
+  });
+
+  // Task-based scoring
   const scoreMap = new Map<number, { done: number; total: number; points: number; totalPoints: number }>();
   employees.filter((e: { status: string }) => e.status === 'Đang làm việc').forEach((emp: { id: number }) => {
     scoreMap.set(emp.id, { done: 0, total: 0, points: 0, totalPoints: 0 });
@@ -1149,16 +1176,118 @@ export async function calculateEmployeeScores(monthNumber?: number) {
     .filter((e: { status: string }) => e.status === 'Đang làm việc')
     .map((emp: { id: number; name: string; department: string; role: string; base_salary: number }) => {
       const entry = scoreMap.get(emp.id) || { done: 0, total: 0, points: 0, totalPoints: 0 };
-      const maxPoints = Math.max(entry.totalPoints, 1000);
-      const scorePercent = maxPoints > 0 ? Math.min(Math.round((entry.points / maxPoints) * 100), 100) : 0;
+      const ratingScore = ratingMap.get(emp.id);
+
+      // Hybrid KPI: use performance_rating as primary (AI-assessed, holistic)
+      // If employee has tasks, blend: 70% rating + 30% task completion
+      // If no tasks, use 100% rating. If no rating, use task-based only.
+      let scorePercent: number;
+      if (ratingScore !== undefined && entry.total > 0) {
+        const taskPct = entry.totalPoints > 0
+          ? Math.min(Math.round((entry.points / entry.totalPoints) * 100), 100)
+          : 0;
+        scorePercent = Math.round(ratingScore * 0.7 + taskPct * 0.3);
+      } else if (ratingScore !== undefined) {
+        scorePercent = ratingScore;
+      } else if (entry.total > 0) {
+        scorePercent = entry.totalPoints > 0
+          ? Math.min(Math.round((entry.points / entry.totalPoints) * 100), 100)
+          : 0;
+      } else {
+        scorePercent = 0;
+      }
+
       return {
         employee: emp,
         totalPoints: entry.points,
-        maxPoints,
+        maxPoints: entry.totalPoints,
         completedTasks: entry.done,
         totalTasks: entry.total,
         scorePercent,
         salaryPercent: scorePercent,
       };
     });
+}
+
+// ============ NOTIFICATIONS ============
+
+export async function getNotifications(userId: number, limit = 20) {
+  const { data, error } = await getSupabase()
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getUnreadNotificationCount(userId: number): Promise<number> {
+  const { count, error } = await getSupabase()
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function markNotificationRead(id: number) {
+  const { error } = await getSupabase()
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function markAllNotificationsRead(userId: number) {
+  const { error } = await getSupabase()
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  if (error) throw error;
+}
+
+export async function createNotification(notification: {
+  user_id: number;
+  type: 'task_assigned' | 'report_submitted' | 'report_approved' | 'alert' | 'system';
+  title: string;
+  message?: string;
+  link?: string;
+}, supabaseClient?: unknown) {
+  const supabase = (supabaseClient || getSupabase()) as ReturnType<typeof getSupabase>;
+  const { error } = await supabase.from('notifications').insert(notification);
+  if (error) throw error;
+}
+
+// ============ CEO TODOS ============
+
+export async function getCEOTodos(status?: string) {
+  let q = getSupabase().from('ceo_todos').select('*').order('is_urgent', { ascending: false }).order('created_at', { ascending: false });
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createCEOTodo(title: string, category = 'general', is_urgent = false) {
+  const { data, error } = await getSupabase().from('ceo_todos').insert({ title, category, is_urgent }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function toggleCEOTodo(id: string) {
+  const { data: existing } = await getSupabase().from('ceo_todos').select('status').eq('id', id).single();
+  const newStatus = existing?.status === 'done' ? 'todo' : 'done';
+  const { error } = await getSupabase().from('ceo_todos').update({
+    status: newStatus,
+    completed_at: newStatus === 'done' ? new Date().toISOString() : null,
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteCEOTodo(id: string) {
+  const { error } = await getSupabase().from('ceo_todos').delete().eq('id', id);
+  if (error) throw error;
 }

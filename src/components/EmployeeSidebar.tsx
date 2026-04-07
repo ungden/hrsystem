@@ -14,6 +14,8 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import NotificationBell from "./NotificationBell";
+import { getSelectedEmpId } from "@/lib/employee-context";
 
 const menuItems = [
   { label: "Dashboard", href: "/employee", icon: LayoutDashboard },
@@ -43,15 +45,18 @@ export default function EmployeeSidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[260px] bg-white border-r border-slate-200/80 flex flex-col z-50 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-slate-100">
-        <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold text-sm">TW</span>
+      {/* Logo + Notification */}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-100">
+        <div className="flex items-center">
+          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
+            <span className="text-white font-bold text-sm">TW</span>
+          </div>
+          <div className="ml-3">
+            <span className="font-bold text-slate-800 text-[15px] leading-tight block">Teeworld</span>
+            <span className="text-[10px] text-emerald-500 leading-tight">Employee Portal</span>
+          </div>
         </div>
-        <div className="ml-3">
-          <span className="font-bold text-slate-800 text-[15px] leading-tight block">Teeworld</span>
-          <span className="text-[10px] text-emerald-500 leading-tight">Employee Portal</span>
-        </div>
+        <NotificationBell userId={getSelectedEmpId()} />
       </div>
 
       {/* Navigation */}

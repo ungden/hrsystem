@@ -74,6 +74,7 @@ export interface ExecutiveReportData {
   employees: {
     topPerformers: { name: string; department: string; kpiScore: number }[];
     atRisk: { name: string; department: string; kpiScore: number }[];
+    all: { name: string; department: string; kpiScore: number }[];
   };
 
   // Pipeline / Deals
@@ -209,14 +210,9 @@ export async function buildExecutiveReport(year: number = 2026): Promise<Executi
     if (career) deptMap[dept].cost += career.current_salary || 0;
   });
 
-  // KPI scores
-  ratings.forEach((r: { employee_id: number; kpi_score: number }) => {
-    const emp = activeEmps.find((e: { id: number }) => e.id === r.employee_id);
-    if (emp) {
-      const dept = emp.department || 'Khác';
-      if (deptMap[dept]) deptMap[dept].kpiScores.push(r.kpi_score || 0);
-    }
-  });
+  // KPI scores — use hybrid scores (same logic as empKPIs) to populate department averages
+  // This runs AFTER empKPIs is computed below, so we'll populate deptMap.kpiScores later
+  // For now, just leave kpiScores empty — we'll fill them from empKPIs after computation
 
   // Task stats
   tasks.forEach((t: { department: string; status: string }) => {
@@ -224,6 +220,63 @@ export async function buildExecutiveReport(year: number = 2026): Promise<Executi
     if (!deptMap[dept]) deptMap[dept] = { headcount: 0, kpiScores: [], done: 0, total: 0, cost: 0 };
     deptMap[dept].total++;
     if (t.status === 'done') deptMap[dept].done++;
+  });
+
+  // ---- KPI scores for ALL employees (hybrid: rating + task data) ----
+  // Build rating map (latest per employee)
+  const ratingMap = new Map<number, number>();
+  ratings.forEach((r: { employee_id: number; kpi_score: number }) => {
+    // First rating encountered is the latest (ordered by created_at desc)
+    if (!ratingMap.has(r.employee_id)) {
+      ratingMap.set(r.employee_id, r.kpi_score || 0);
+    }
+  });
+
+  // Build task stats per employee
+  const empTaskMap = new Map<number, { done: number; total: number; points: number; totalPoints: number }>();
+  tasks.forEach((t: { assignee_id?: number; status: string; points?: number }) => {
+    if (!t.assignee_id) return;
+    if (!empTaskMap.has(t.assignee_id)) empTaskMap.set(t.assignee_id, { done: 0, total: 0, points: 0, totalPoints: 0 });
+    const e = empTaskMap.get(t.assignee_id)!;
+    e.total++;
+    e.totalPoints += (t.points as number) || 0;
+    if (t.status === 'done') { e.done++; e.points += (t.points as number) || 0; }
+  });
+
+  const empKPIs: { name: string; department: string; kpiScore: number }[] = [];
+  activeEmps.forEach((emp: { id: number; name: string; department: string }) => {
+    const rating = ratingMap.get(emp.id);
+    const taskData = empTaskMap.get(emp.id);
+
+    let kpiScore: number;
+    if (rating !== undefined && taskData && taskData.total > 0) {
+      const taskPct = taskData.totalPoints > 0
+        ? Math.min(Math.round((taskData.points / taskData.totalPoints) * 100), 100)
+        : 0;
+      kpiScore = Math.round(rating * 0.7 + taskPct * 0.3);
+    } else if (rating !== undefined) {
+      kpiScore = rating;
+    } else if (taskData && taskData.total > 0) {
+      kpiScore = taskData.totalPoints > 0
+        ? Math.min(Math.round((taskData.points / taskData.totalPoints) * 100), 100)
+        : 0;
+    } else {
+      kpiScore = 0;
+    }
+
+    empKPIs.push({ name: emp.name, department: emp.department, kpiScore });
+  });
+
+  empKPIs.sort((a, b) => b.kpiScore - a.kpiScore);
+  const topPerformers = empKPIs.slice(0, 5);
+  const atRisk = empKPIs.filter(e => e.kpiScore < 60).slice(0, 5);
+
+  const avgKPI = empKPIs.length > 0 ? Math.round(empKPIs.reduce((s, e) => s + e.kpiScore, 0) / empKPIs.length) : 0;
+
+  // ---- Populate department KPI from hybrid empKPIs ----
+  empKPIs.forEach(ek => {
+    const dept = ek.department || 'Khác';
+    if (deptMap[dept]) deptMap[dept].kpiScores.push(ek.kpiScore);
   });
 
   const departments = Object.entries(deptMap).map(([name, d]) => ({
@@ -235,20 +288,6 @@ export async function buildExecutiveReport(year: number = 2026): Promise<Executi
     completionRate: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
     totalCost: d.cost,
   })).sort((a, b) => b.headcount - a.headcount);
-
-  // ---- KPI scores for top/risk ----
-  const empKPIs: { name: string; department: string; kpiScore: number }[] = [];
-  ratings.forEach((r: { employee_id: number; kpi_score: number }) => {
-    const emp = activeEmps.find((e: { id: number }) => e.id === r.employee_id);
-    if (emp) {
-      empKPIs.push({ name: emp.name, department: emp.department, kpiScore: r.kpi_score || 0 });
-    }
-  });
-  empKPIs.sort((a, b) => b.kpiScore - a.kpiScore);
-  const topPerformers = empKPIs.slice(0, 5);
-  const atRisk = empKPIs.filter(e => e.kpiScore < 60).slice(0, 5);
-
-  const avgKPI = empKPIs.length > 0 ? Math.round(empKPIs.reduce((s, e) => s + e.kpiScore, 0) / empKPIs.length) : 0;
 
   // ---- Pipeline ----
   const pipelineMap: Record<string, { count: number; value: number }> = {};
@@ -319,7 +358,7 @@ export async function buildExecutiveReport(year: number = 2026): Promise<Executi
     monthlyPnL,
     channels: channelData,
     departments,
-    employees: { topPerformers, atRisk },
+    employees: { topPerformers, atRisk, all: empKPIs },
     pipeline,
     inventory: {
       totalItems: invItems.length,

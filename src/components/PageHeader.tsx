@@ -22,23 +22,23 @@ export default function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className="border-b border-slate-200 pb-4 mb-6">
+    <div className="pb-5 mb-6">
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="flex items-center gap-1 text-xs text-slate-400 mb-2">
+        <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-2.5">
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
             return (
-              <span key={index} className="flex items-center gap-1">
+              <span key={index} className="flex items-center gap-1.5">
                 {index > 0 && <span className="text-slate-300">/</span>}
                 {crumb.href && !isLast ? (
                   <Link
                     href={crumb.href}
-                    className="hover:text-slate-600 transition-colors"
+                    className="hover:text-indigo-600 transition-colors font-medium"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "text-slate-600" : ""}>
+                  <span className={isLast ? "text-slate-600 font-medium" : ""}>
                     {crumb.label}
                   </span>
                 )}
@@ -50,7 +50,7 @@ export default function PageHeader({
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h1>
           {subtitle && (
             <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
           )}

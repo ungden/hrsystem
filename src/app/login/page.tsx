@@ -145,7 +145,8 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Demo Mode */}
+          {/* Demo Mode — only visible when NEXT_PUBLIC_DEMO_MODE=true */}
+          {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
           <div className="mt-6 pt-6 border-t border-slate-100">
             <p className="text-[11px] text-slate-400 text-center mb-3">DEMO MODE — Chọn vai trò để trải nghiệm</p>
             <div className="grid grid-cols-2 gap-2">
@@ -160,6 +161,7 @@ export default function LoginPage() {
               11 NV | 696 tasks | 8 SP | 8 đơn hàng | 15 NVL | KH vs Thực tế
             </p>
           </div>
+          )}
         </div>
       </div>
     </div>

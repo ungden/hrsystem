@@ -1,257 +1,318 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Target, DollarSign, TrendingUp, Users, ShoppingCart, BarChart3,
-  CheckCircle2, AlertTriangle, ArrowRight, ArrowUpRight, ArrowDownRight,
-  Zap, Package, Palette, Globe, Shield, Brain, RefreshCw,
-  Activity, Clock, Flame, Star, Eye, MessageSquare,
+  Target, TrendingUp, Users, ShoppingCart,
+  CheckCircle2, AlertTriangle, ArrowRight, ArrowUpRight,
+  Zap, Package, Globe, Brain, RefreshCw,
+  Activity, Flame, Star, MessageSquare, Eye,
 } from 'lucide-react';
-import AgentAvatar from '@/components/agents/AgentAvatar';
-import AgentStatusIndicator from '@/components/agents/AgentStatusIndicator';
 import { agentProfiles, allAgentRoles } from '@/lib/agents/agent-profiles';
 import { runFullCoordination } from '@/lib/agents/coordinator';
 import { buildExecutiveReport, ExecutiveReportData, fmtVND, fmtPct } from '@/lib/report-builder';
-import type { AgentCoordinationState, AgentRole, BusinessTarget, StockAlert } from '@/lib/agent-types';
-
-// ============ COMPONENT ============
+import type { AgentCoordinationState, AgentRole } from '@/lib/agent-types';
 
 export default function CommandCenterPage() {
   const [agentState, setAgentState] = useState<AgentCoordinationState | null>(null);
   const [report, setReport] = useState<ExecutiveReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [phase, setPhase] = useState<string>('Khởi tạo...');
+  const [phase, setPhase] = useState('Khởi tạo...');
+  const [phaseNum, setPhaseNum] = useState(0);
 
   const loadData = () => {
     setLoading(true);
+    setPhaseNum(0);
     setPhase('Thu thập dữ liệu...');
+    const t0 = Date.now();
+
+    const tick = setInterval(() => {
+      const elapsed = (Date.now() - t0) / 1000;
+      if (elapsed < 2) { setPhase('Thu thập Intelligence...'); setPhaseNum(1); }
+      else if (elapsed < 4) { setPhase('CEO đặt chiến lược...'); setPhaseNum(2); }
+      else if (elapsed < 6) { setPhase('Phân bổ mục tiêu phòng ban...'); setPhaseNum(3); }
+      else if (elapsed < 8) { setPhase('Coach đánh giá hiệu suất...'); setPhaseNum(4); }
+      else { setPhase('Tổng hợp báo cáo...'); setPhaseNum(5); }
+    }, 500);
 
     Promise.all([
-      runFullCoordination(2026, 'Q2').then(s => { setPhase('Agents phân tích...'); return s; }),
+      runFullCoordination(2026, 'Q2'),
       buildExecutiveReport(2026),
     ]).then(([state, rpt]) => {
+      clearInterval(tick);
       setAgentState(state);
       setReport(rpt);
-      setPhase('Hoàn tất');
       setLoading(false);
     }).catch(() => {
-      setPhase('Lỗi');
+      clearInterval(tick);
+      setPhase('Lỗi kết nối');
       setLoading(false);
     });
   };
 
   useEffect(() => { loadData(); }, []);
 
-  // ---- Loading state ----
+  // ── Loading ──
   if (loading || !agentState || !report) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 animate-ping" />
-            <div className="absolute inset-2 rounded-full border-2 border-cyan-400/50 animate-pulse" />
-            <div className="absolute inset-4 rounded-full bg-cyan-500/20 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-cyan-400 animate-pulse" />
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          {/* Animated rings */}
+          <div className="relative w-28 h-28 mx-auto mb-8">
+            <div className="absolute inset-0 rounded-full border border-cyan-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="absolute inset-3 rounded-full border border-cyan-400/30 animate-ping" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute inset-6 rounded-full border border-cyan-300/40 animate-pulse" />
+            <div className="absolute inset-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center backdrop-blur-sm">
+              <Brain className="w-7 h-7 text-cyan-400" />
             </div>
           </div>
-          <p className="text-cyan-400 text-sm font-mono">{phase}</p>
-          <p className="text-slate-500 text-xs mt-2">11 AI Agents đang phối hợp phân tích...</p>
+          <p className="text-cyan-400 text-sm font-medium tracking-wide mb-2">{phase}</p>
+          {/* Phase progress */}
+          <div className="flex items-center gap-1.5 justify-center mb-4">
+            {[1,2,3,4,5].map(n => (
+              <div key={n} className={`h-1 rounded-full transition-all duration-500 ${n <= phaseNum ? 'w-8 bg-cyan-400' : 'w-4 bg-slate-700'}`} />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {['CEO','HR','CFO','Coach','MR','CH','KHO','BST','STR','TrP','TL'].map((a, i) => (
+              <span key={a} className={`text-[9px] px-2 py-1 rounded-full border transition-all duration-300 ${i < phaseNum * 2 ? 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10' : 'border-slate-700 text-slate-600'}`}>{a}</span>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
-  const { businessTargets, departmentGoals, individualPlans, costProjections, messages, agentStatuses, stockAlerts, channelAnalysis, collectionPlans, strategyReport, marketResearch, financialHealth } = agentState;
+  const { businessTargets, departmentGoals, individualPlans, messages, agentStatuses, stockAlerts, channelAnalysis, collectionPlans, strategyReport } = agentState;
 
-  // Computed metrics
-  const totalAgents = allAgentRoles.length;
-  const agentsDone = Object.values(agentStatuses).filter(s => s === 'done').length;
   const totalMessages = messages.length;
   const alerts = messages.filter(m => m.type === 'alert').length;
   const decisions = messages.filter(m => m.type === 'decision').length;
   const recommendations = messages.filter(m => m.type === 'recommendation').length;
-
-  // Business target summary
   const onTrack = businessTargets.filter(t => t.status === 'on_track' || t.status === 'achieved').length;
-  const atRisk = businessTargets.filter(t => t.status === 'at_risk').length;
   const behind = businessTargets.filter(t => t.status === 'behind').length;
-
-  // Stock alerts
   const criticalStock = stockAlerts.filter(a => a.status === 'critical').length;
-  const lowStock = stockAlerts.filter(a => a.status === 'low').length;
+  const lowStockCount = stockAlerts.filter(a => a.status === 'low').length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ═══════════ HEADER ═══════════ */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center border border-cyan-500/30">
-                  <Shield className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Tổng Chỉ Huy</h1>
-                  <p className="text-xs text-slate-400">Teeworld Command Center — Q2/2026</p>
-                </div>
+    <div className="min-h-screen bg-[#f0f2f5]">
+
+      {/* ═══════════════════════════════════════════════
+          HERO HEADER — Dark gradient with glassmorphism
+         ═══════════════════════════════════════════════ */}
+      <div className="relative overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
+        {/* Glow orbs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+
+        <div className="relative max-w-[1400px] mx-auto px-4 md:px-8 pt-6 pb-8">
+          {/* Title bar */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <span className="text-white text-sm font-black tracking-tight">TW</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Tổng Chỉ Huy</h1>
+                <p className="text-sm text-slate-400">Teeworld Command Center — Q2/2026</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs text-green-400 font-mono">{agentsDone}/{totalAgents} agents online</span>
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-sm shadow-emerald-400" />
+                <span className="text-xs text-emerald-300 font-mono">11/11 agents online</span>
               </div>
-              <button onClick={loadData} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10">
+              <button onClick={loadData} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm">
                 <RefreshCw size={16} className="text-slate-400" />
               </button>
             </div>
           </div>
 
-          {/* ── TOP METRICS ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-            <MetricCard label="Doanh thu YTD" value={fmtVND(report.overview.totalRevenue)} sub={`Mục tiêu: ${fmtVND(report.overview.revenueTarget)}`} color="cyan" />
-            <MetricCard label="Lợi nhuận" value={fmtVND(report.overview.netProfit)} sub={`Margin: ${fmtPct(report.overview.profitMargin)}`} color={report.overview.netProfit > 0 ? "green" : "red"} />
-            <MetricCard label="Nhân sự" value={`${report.overview.headcount}`} sub={`KPI TB: ${report.overview.avgKPI}/100`} color="blue" />
-            <MetricCard label="Đơn hàng" value={`${report.overview.totalOrders}`} sub={`${report.overview.totalDeals} deals`} color="purple" />
-            <MetricCard label="Mục tiêu" value={`${onTrack}/${businessTargets.length}`} sub={`${atRisk} at risk, ${behind} behind`} color={behind > 0 ? "amber" : "green"} />
-            <MetricCard label="Tồn kho" value={`${report.inventory.totalItems}`} sub={`${criticalStock} critical, ${lowStock} low`} color={criticalStock > 0 ? "red" : "green"} />
-            <MetricCard label="Agent msgs" value={`${totalMessages}`} sub={`${alerts} alerts, ${decisions} quyết định`} color="slate" />
-            <MetricCard label="BST active" value={`${collectionPlans.filter(c => c.status === 'launched' || c.status === 'in_production').length}`} sub={`${collectionPlans.length} planned/năm`} color="pink" />
+          {/* ── Hero Metrics Grid ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <HeroCard
+              label="Doanh thu YTD"
+              value={fmtVND(report.overview.totalRevenue)}
+              sub={`/ ${fmtVND(report.overview.revenueTarget)} mục tiêu`}
+              accent="cyan"
+              pct={report.overview.targetAchievement}
+            />
+            <HeroCard
+              label="Lợi nhuận ròng"
+              value={fmtVND(report.overview.netProfit)}
+              sub={`Margin ${fmtPct(report.overview.profitMargin)}`}
+              accent={report.overview.netProfit > 0 ? "emerald" : "red"}
+            />
+            <HeroCard
+              label="Đội ngũ"
+              value={`${report.overview.headcount} người`}
+              sub={`KPI trung bình: ${report.overview.avgKPI}/100`}
+              accent="violet"
+            />
+            <HeroCard
+              label="Pipeline"
+              value={`${report.overview.totalDeals} deals`}
+              sub={`${report.overview.totalOrders} đơn hàng`}
+              accent="amber"
+            />
+          </div>
+
+          {/* Revenue progress bar */}
+          <div className="mt-6 relative">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-400">Tiến độ mục tiêu năm</span>
+              <span className="text-sm font-bold text-cyan-400">{fmtPct(report.overview.targetAchievement)}</span>
+            </div>
+            <div className="h-2 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm">
+              <div className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-400 rounded-full shadow-sm shadow-cyan-500/50 transition-all duration-1000" style={{ width: `${Math.min(report.overview.targetAchievement, 100)}%` }} />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-slate-500">{fmtVND(report.overview.totalRevenue)}</span>
+              <span className="text-[10px] text-slate-500">{fmtVND(report.overview.revenueTarget)}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 space-y-6">
+      {/* ═══════════════════════════════════════════════
+          MAIN CONTENT
+         ═══════════════════════════════════════════════ */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 -mt-2 pb-10 space-y-6">
 
-        {/* ═══════════ REVENUE TARGET PROGRESS ═══════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Target className="w-4 h-4 text-blue-600" /> Tiến độ Mục tiêu 2026
-            </h2>
-            <span className="text-2xl font-bold text-blue-600">{fmtPct(report.overview.targetAchievement)}</span>
-          </div>
-          <div className="h-4 bg-slate-100 rounded-full overflow-hidden mb-2">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all" style={{ width: `${Math.min(report.overview.targetAchievement, 100)}%` }} />
-          </div>
-          <div className="flex justify-between text-xs text-slate-500">
-            <span>Đạt: {fmtVND(report.overview.totalRevenue)}</span>
-            <span>Mục tiêu: {fmtVND(report.overview.revenueTarget)}</span>
-          </div>
-
-          {/* Quarterly breakdown */}
-          <div className="grid grid-cols-4 gap-3 mt-4">
-            {report.quarterComparison.map(q => (
-              <div key={q.quarter} className={`rounded-lg p-3 text-center ${q.quarter === 'Q2' ? 'bg-blue-50 border-2 border-blue-300' : 'bg-slate-50'}`}>
-                <div className="text-xs text-slate-500 mb-1">{q.quarter}{q.quarter === 'Q2' ? ' ←' : ''}</div>
-                <div className="text-sm font-bold text-slate-800">{fmtVND(q.revenue)}</div>
-                <div className={`text-xs font-medium ${q.margin > 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtPct(q.margin)} margin</div>
-              </div>
-            ))}
-          </div>
+        {/* ── Quick Stats Strip ── */}
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          {[
+            { label: 'Mục tiêu', value: `${onTrack}/${businessTargets.length}`, color: behind > 0 ? 'text-amber-600' : 'text-emerald-600' },
+            { label: 'Tồn kho', value: `${report.inventory.totalItems}`, color: criticalStock > 0 ? 'text-red-600' : 'text-emerald-600' },
+            { label: 'BST active', value: `${collectionPlans.filter(c => c.status === 'launched' || c.status === 'in_production').length}`, color: 'text-fuchsia-600' },
+            { label: 'Sản phẩm', value: `${report.overview.activeProducts}`, color: 'text-blue-600' },
+            { label: 'Agent msgs', value: `${totalMessages}`, color: 'text-slate-600' },
+            { label: 'Quyết định', value: `${decisions}`, color: 'text-emerald-600' },
+            { label: 'Cảnh báo', value: `${alerts}`, color: alerts > 0 ? 'text-amber-600' : 'text-slate-400' },
+            { label: 'KH cá nhân', value: `${individualPlans.length}`, color: 'text-violet-600' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white rounded-xl p-3 text-center shadow-sm border border-slate-100">
+              <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-[9px] text-slate-400 mt-0.5">{s.label}</div>
+            </div>
+          ))}
         </div>
 
-        {/* ═══════════ AI AGENTS STATUS ═══════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-purple-600" /> AI Agents — Trạng thái Audit
-            </h2>
+        {/* ── AI Agents Audit ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <Link href="/admin/tro-chuyen" className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <Brain className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">AI Agents — Đã audit toàn bộ hệ thống</h2>
+                <p className="text-[11px] text-slate-400">5 giai đoạn: Intelligence → Chiến lược → Phân bổ → Kiểm soát → Tổng hợp</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/admin/tro-chuyen" className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold rounded-xl hover:shadow-lg hover:shadow-blue-500/20 transition-all">
                 <MessageSquare size={12} /> Chat với Agents
               </Link>
-              <Link href="/admin/nhat-ky" className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600">
-                <Eye size={12} /> {totalMessages} messages
+              <Link href="/admin/nhat-ky" className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-blue-600 px-3 py-2">
+                <Eye size={12} /> {totalMessages} logs
               </Link>
             </div>
           </div>
 
-          {/* Agent grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-4">
-            {allAgentRoles.map(role => {
-              const profile = agentProfiles[role];
-              const status = agentStatuses[role];
-              const msgCount = messages.filter(m => m.agentRole === role).length;
-              const lastMsg = [...messages].reverse().find(m => m.agentRole === role);
-              const alertCount = messages.filter(m => m.agentRole === role && m.type === 'alert').length;
+          <div className="p-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+              {allAgentRoles.map(role => {
+                const profile = agentProfiles[role];
+                const status = agentStatuses[role];
+                const msgCount = messages.filter(m => m.agentRole === role).length;
+                const lastMsg = [...messages].reverse().find(m => m.agentRole === role);
+                const alertCount = messages.filter(m => m.agentRole === role && m.type === 'alert').length;
 
-              return (
-                <div key={role} className={`rounded-xl border p-3 ${status === 'done' ? 'border-green-200 bg-green-50/50' : status === 'error' ? 'border-red-200 bg-red-50/50' : 'border-slate-200 bg-slate-50'}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <AgentAvatar role={role} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-slate-800 truncate">{profile.name}</p>
-                      <AgentStatusIndicator status={status} />
+                return (
+                  <div key={role} className="group relative rounded-xl border border-slate-100 p-3.5 hover:border-slate-200 hover:shadow-md transition-all duration-200 cursor-default">
+                    {/* Status dot */}
+                    <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${status === 'done' ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-slate-300'}`} />
+
+                    <div className="flex items-center gap-2.5 mb-2.5">
+                      <div className={`w-8 h-8 ${profile.color} rounded-lg flex items-center justify-center text-white text-[9px] font-bold shadow-sm`}>
+                        {profile.avatar}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">{profile.name}</p>
+                        <p className="text-[9px] text-slate-400 truncate">{profile.title}</p>
+                      </div>
                     </div>
-                    {alertCount > 0 && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">
-                        <AlertTriangle size={8} /> {alertCount}
-                      </span>
-                    )}
+
+                    <p className="text-[10px] text-slate-500 line-clamp-2 min-h-[28px] leading-relaxed mb-2">
+                      {lastMsg ? lastMsg.content.slice(0, 90) + '...' : profile.description}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                      <span className="text-[9px] text-slate-400">{msgCount} msgs</span>
+                      <div className="flex items-center gap-1.5">
+                        {alertCount > 0 && (
+                          <span className="flex items-center gap-0.5 text-[8px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full font-medium">
+                            <AlertTriangle size={7} /> {alertCount}
+                          </span>
+                        )}
+                        {status === 'done' && <CheckCircle2 size={11} className="text-emerald-500" />}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-2 min-h-[28px]">
-                    {lastMsg ? lastMsg.content.slice(0, 100) + '...' : profile.description}
-                  </p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[9px] text-slate-400">{msgCount} msgs</span>
-                    {status === 'done' && <CheckCircle2 size={12} className="text-green-500" />}
+                );
+              })}
+            </div>
+
+            {/* Coordination summary */}
+            <div className="grid grid-cols-4 gap-3 mt-5 bg-gradient-to-r from-slate-50 to-slate-50/50 rounded-xl p-4">
+              {[
+                { icon: CheckCircle2, label: 'Quyết định', value: decisions, color: 'text-emerald-600' },
+                { icon: Zap, label: 'Khuyến nghị', value: recommendations, color: 'text-blue-600' },
+                { icon: AlertTriangle, label: 'Cảnh báo', value: alerts, color: 'text-amber-600' },
+                { icon: Target, label: 'KH cá nhân', value: individualPlans.length, color: 'text-violet-600' },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm`}>
+                    <s.icon size={16} className={s.color} />
+                  </div>
+                  <div>
+                    <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
+                    <div className="text-[9px] text-slate-400">{s.label}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Agent coordination summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 rounded-lg p-4">
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-600">{decisions}</div>
-              <div className="text-[10px] text-slate-500">Quyết định</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{recommendations}</div>
-              <div className="text-[10px] text-slate-500">Khuyến nghị</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-amber-600">{alerts}</div>
-              <div className="text-[10px] text-slate-500">Cảnh báo</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">{individualPlans.length}</div>
-              <div className="text-[10px] text-slate-500">Kế hoạch cá nhân</div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* ═══════════ ROW: Business Targets + P&L ═══════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* Business Targets */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Flame className="w-4 h-4 text-orange-500" /> Mục tiêu Kinh doanh Q2/2026
+        {/* ── Quarter Performance + P&L ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Quarters */}
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+              <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center"><TrendingUp size={13} className="text-blue-600" /></div>
+              Quý so sánh
             </h2>
-            <div className="space-y-2">
-              {businessTargets.slice(0, 10).map(t => {
-                const pct = t.targetValue > 0 ? (t.currentValue / t.targetValue) * 100 : 0;
-                const statusColor = t.status === 'achieved' ? 'bg-green-500' : t.status === 'on_track' ? 'bg-blue-500' : t.status === 'at_risk' ? 'bg-amber-500' : 'bg-red-500';
-                const statusLabel = t.status === 'achieved' ? 'Đạt' : t.status === 'on_track' ? 'Đúng tiến độ' : t.status === 'at_risk' ? 'Rủi ro' : 'Chậm';
+            <div className="space-y-3">
+              {report.quarterComparison.map(q => {
+                const maxRev = Math.max(...report.quarterComparison.map(x => x.revenue));
+                const isCurrent = q.quarter === 'Q2';
                 return (
-                  <div key={t.id} className="flex items-center gap-3 py-1.5">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-700 truncate">{t.name}</span>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${t.status === 'achieved' ? 'bg-green-100 text-green-700' : t.status === 'on_track' ? 'bg-blue-100 text-blue-700' : t.status === 'at_risk' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{statusLabel}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                        </div>
-                        <span className="text-[10px] text-slate-400 w-8 text-right">{Math.round(pct)}%</span>
-                      </div>
+                  <div key={q.quarter} className={`rounded-xl p-4 ${isCurrent ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm' : 'bg-slate-50 border border-slate-100'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-bold ${isCurrent ? 'text-blue-700' : 'text-slate-600'}`}>{q.quarter} {isCurrent ? '← hiện tại' : ''}</span>
+                      <span className={`text-xs font-bold ${q.margin > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtPct(q.margin)}</span>
+                    </div>
+                    <div className="h-2 bg-white/80 rounded-full overflow-hidden mb-1.5">
+                      <div className={`h-full rounded-full ${isCurrent ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-slate-300'}`} style={{ width: `${maxRev > 0 ? (q.revenue / maxRev) * 100 : 0}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-500">DT: {fmtVND(q.revenue)}</span>
+                      <span className={q.profit >= 0 ? 'text-emerald-600 font-medium' : 'text-red-500 font-medium'}>LN: {fmtVND(q.profit)}</span>
                     </div>
                   </div>
                 );
@@ -260,316 +321,379 @@ export default function CommandCenterPage() {
           </div>
 
           {/* Monthly P&L */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <TrendingUp className="w-4 h-4 text-green-600" /> P&L theo tháng
-            </h2>
-            <div className="space-y-1.5">
-              {report.monthlyPnL.map(m => {
+          <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center"><Activity size={13} className="text-emerald-600" /></div>
+                P&L theo tháng
+              </h2>
+              <Link href="/admin/bao-cao-tai-chinh/ket-qua-kinh-doanh" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">
+                Chi tiết <ArrowRight size={10} />
+              </Link>
+            </div>
+            <div className="space-y-1">
+              {report.monthlyPnL.map((m, idx) => {
                 const maxRev = Math.max(...report.monthlyPnL.map(x => x.revenue));
+                const barW = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
                 return (
-                  <div key={m.month} className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-500 w-12 font-mono">{m.month}</span>
-                    <div className="flex-1 h-5 bg-slate-50 rounded overflow-hidden flex relative">
-                      <div className="bg-green-400/70 h-full" style={{ width: `${maxRev > 0 ? (m.revenue / maxRev) * 100 : 0}%` }} />
-                      {m.profit < 0 && <div className="absolute right-1 top-0.5 text-[9px] text-red-500 font-medium">lỗ</div>}
+                  <div key={m.month} className="flex items-center gap-2 py-1.5 group hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
+                    <span className="text-[11px] text-slate-500 w-14 font-mono">{m.month}</span>
+                    <div className="flex-1 h-6 bg-slate-50 rounded-lg overflow-hidden relative">
+                      <div className={`h-full rounded-lg transition-all duration-500 ${m.profit >= 0 ? 'bg-gradient-to-r from-emerald-200 to-emerald-300' : 'bg-gradient-to-r from-red-200 to-red-300'}`} style={{ width: `${barW}%` }} />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 font-mono opacity-0 group-hover:opacity-100 transition-opacity">{fmtVND(m.revenue)}</span>
                     </div>
                     <span className="text-[10px] text-slate-600 w-14 text-right font-mono">{fmtVND(m.revenue)}</span>
-                    <span className={`text-[10px] w-12 text-right font-bold font-mono ${m.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtVND(m.profit)}</span>
+                    <span className={`text-[10px] w-12 text-right font-bold font-mono ${m.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmtVND(m.profit)}</span>
                   </div>
                 );
               })}
             </div>
-            <Link href="/admin/bao-cao-tai-chinh/ket-qua-kinh-doanh" className="flex items-center gap-1 text-xs text-blue-600 mt-3 hover:underline">
-              Xem báo cáo tài chính <ArrowRight size={12} />
-            </Link>
           </div>
         </div>
 
-        {/* ═══════════ ROW: Channel + Department Performance ═══════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* Channel Analysis */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Globe className="w-4 h-4 text-indigo-600" /> Kênh bán hàng — Agent Analysis
-            </h2>
-            <div className="space-y-3">
-              {channelAnalysis.map(ch => {
-                const recColor = ch.recommendation === 'increase' ? 'text-green-600 bg-green-50' : ch.recommendation === 'decrease' ? 'text-red-600 bg-red-50' : ch.recommendation === 'optimize' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50';
-                const recLabel = ch.recommendation === 'increase' ? '↑ Tăng' : ch.recommendation === 'decrease' ? '↓ Giảm' : ch.recommendation === 'optimize' ? '⚡ Tối ưu' : '→ Giữ';
-                return (
-                  <div key={ch.channel} className="flex items-center gap-3">
-                    <span className="text-xs text-slate-700 font-medium w-24 truncate">{ch.channel}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${ch.margin_pct >= 35 ? 'bg-green-500' : ch.margin_pct >= 20 ? 'bg-blue-500' : ch.margin_pct >= 0 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.max(ch.margin_pct + 20, 5)}%` }} />
-                        </div>
-                        <span className={`text-[10px] font-bold w-10 text-right ${ch.margin_pct >= 20 ? 'text-green-600' : ch.margin_pct >= 0 ? 'text-amber-600' : 'text-red-600'}`}>{ch.margin_pct}%</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[9px] text-slate-400">
-                        <span>Share: {ch.revenue_share}%</span>
-                        <span>ROAS: {ch.roas}x</span>
-                      </div>
-                    </div>
-                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${recColor}`}>{recLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <Link href="/admin/master-plan/marketing" className="flex items-center gap-1 text-xs text-blue-600 mt-3 hover:underline">
-              Xem report Marketing <ArrowRight size={12} />
-            </Link>
-          </div>
-
-          {/* Department Performance */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Users className="w-4 h-4 text-blue-600" /> Hiệu suất Phòng ban
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                    <th className="pb-2">Phòng ban</th>
-                    <th className="pb-2 text-center">NV</th>
-                    <th className="pb-2 text-center">KPI TB</th>
-                    <th className="pb-2 text-center">Tasks</th>
-                    <th className="pb-2 text-center">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.departments.map(dept => (
-                    <tr key={dept.name} className="border-b border-slate-50 hover:bg-slate-50/50">
-                      <td className="py-2 text-slate-700 font-medium">{dept.name.replace('Phòng ', '')}</td>
-                      <td className="py-2 text-center text-slate-600">{dept.headcount}</td>
-                      <td className="py-2 text-center">
-                        <span className={`font-bold ${dept.avgKPI >= 80 ? 'text-green-600' : dept.avgKPI >= 60 ? 'text-blue-600' : dept.avgKPI > 0 ? 'text-amber-600' : 'text-slate-300'}`}>
-                          {dept.avgKPI || '—'}
-                        </span>
-                      </td>
-                      <td className="py-2 text-center text-slate-600">{dept.tasksDone}/{dept.tasksTotal}</td>
-                      <td className="py-2 text-center">
-                        <span className={`font-bold ${dept.completionRate >= 70 ? 'text-green-600' : dept.completionRate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                          {fmtPct(dept.completionRate)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Link href="/admin/master-plan/hr-director" className="flex items-center gap-1 text-xs text-blue-600 mt-3 hover:underline">
-              Xem report HR <ArrowRight size={12} />
-            </Link>
-          </div>
-        </div>
-
-        {/* ═══════════ ROW: Top/Risk Employees + Inventory + Pipeline ═══════════ */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {/* Top Performers & At-Risk */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Star className="w-4 h-4 text-amber-500" /> Nhân sự nổi bật
-            </h2>
-            {report.employees.topPerformers.length > 0 && (
-              <div className="mb-4">
-                <div className="text-[10px] text-green-600 font-semibold uppercase tracking-wider mb-2">Top Performers</div>
-                {report.employees.topPerformers.map((e, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1.5">
-                    <span className="w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-[9px] font-bold">#{i+1}</span>
-                    <span className="text-xs text-slate-700 flex-1 truncate">{e.name}</span>
-                    <span className="text-[10px] text-slate-400">{e.department?.replace('Phòng ', '')}</span>
-                    <span className="text-xs font-bold text-green-600">{e.kpiScore}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {report.employees.atRisk.length > 0 && (
-              <div>
-                <div className="text-[10px] text-red-600 font-semibold uppercase tracking-wider mb-2">Cần Coaching</div>
-                {report.employees.atRisk.map((e, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1.5">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-xs text-slate-700 flex-1 truncate">{e.name}</span>
-                    <span className="text-xs font-bold text-red-600">{e.kpiScore}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {report.employees.topPerformers.length === 0 && report.employees.atRisk.length === 0 && (
-              <p className="text-xs text-slate-400">Chưa có dữ liệu KPI</p>
-            )}
-            <Link href="/admin/master-plan/coach" className="flex items-center gap-1 text-xs text-blue-600 mt-3 hover:underline">
-              Xem report Coach <ArrowRight size={12} />
-            </Link>
-          </div>
-
-          {/* Inventory Alerts */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Package className="w-4 h-4 text-orange-600" /> Tồn kho & Chuỗi cung ứng
-            </h2>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className={`rounded-lg p-3 text-center ${criticalStock > 0 ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
-                <div className={`text-xl font-bold ${criticalStock > 0 ? 'text-red-600' : 'text-green-600'}`}>{criticalStock}</div>
-                <div className="text-[9px] text-slate-500">Hết hàng</div>
-              </div>
-              <div className={`rounded-lg p-3 text-center ${lowStock > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
-                <div className={`text-xl font-bold ${lowStock > 0 ? 'text-amber-600' : 'text-green-600'}`}>{lowStock}</div>
-                <div className="text-[9px] text-slate-500">Sắp hết</div>
-              </div>
-            </div>
-            {stockAlerts.filter(a => a.status === 'critical' || a.status === 'low').slice(0, 5).map((a, i) => (
-              <div key={i} className="flex items-center gap-2 py-1 text-xs">
-                <span className={`w-1.5 h-1.5 rounded-full ${a.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                <span className="text-slate-700 flex-1 truncate">{a.itemName}</span>
-                <span className="text-[10px] text-slate-400">{a.currentStock}/{a.minStock}</span>
-              </div>
-            ))}
-            <div className="mt-3 text-xs text-slate-500">
-              Tổng giá trị kho: <span className="font-bold text-slate-700">{fmtVND(report.inventory.totalValue)}</span>
-            </div>
-            <Link href="/admin/master-plan/operations" className="flex items-center gap-1 text-xs text-blue-600 mt-2 hover:underline">
-              Xem report Operations <ArrowRight size={12} />
-            </Link>
-          </div>
-
-          {/* Pipeline */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <ShoppingCart className="w-4 h-4 text-purple-600" /> Pipeline & Deals
-            </h2>
-            <div className="space-y-2.5">
-              {report.pipeline.map(p => {
-                const maxVal = Math.max(...report.pipeline.map(x => x.totalValue));
-                return (
-                  <div key={p.stage}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-700">{p.stage} <span className="text-slate-400">({p.count})</span></span>
-                      <span className="font-bold text-slate-700">{fmtVND(p.totalValue)}</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500/70 rounded-full" style={{ width: `${maxVal > 0 ? (p.totalValue / maxVal) * 100 : 0}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <Link href="/admin/master-plan/sales" className="flex items-center gap-1 text-xs text-blue-600 mt-3 hover:underline">
-              Xem report Sales <ArrowRight size={12} />
-            </Link>
-          </div>
-        </div>
-
-        {/* ═══════════ FINANCIAL HEALTH ═══════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-teal-600" /> Sức khỏe Tài chính
+        {/* ── Business Targets ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+            <div className="w-6 h-6 rounded-md bg-orange-100 flex items-center justify-center"><Flame size={13} className="text-orange-600" /></div>
+            Mục tiêu Kinh doanh Q2/2026 — CEO đã thiết lập
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <HealthGauge label="Current Ratio" value={report.financialHealth.currentRatio} unit="x" good={1.5} warn={1.0} />
-            <HealthGauge label="Debt/Equity" value={report.financialHealth.debtToEquity} unit="x" good={1.0} warn={2.0} invert />
-            <HealthGauge label="Profit Margin" value={report.financialHealth.profitMargin} unit="%" good={15} warn={5} />
-            <HealthGauge label="Operating Margin" value={report.financialHealth.operatingMargin} unit="%" good={20} warn={10} />
-            <HealthGauge label="Burn Rate" value={report.financialHealth.burnRate / 1_000_000} unit="M/tháng" good={500} warn={800} invert />
-          </div>
-          <Link href="/admin/master-plan/cfo" className="flex items-center gap-1 text-xs text-blue-600 mt-4 hover:underline">
-            Xem report CFO <ArrowRight size={12} />
-          </Link>
-        </div>
-
-        {/* ═══════════ STRATEGY ADVISOR INSIGHTS ═══════════ */}
-        {strategyReport && (
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Zap className="w-4 h-4 text-amber-600" /> Strategy Advisor — Cảnh báo & Blind spots
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {strategyReport.messages.filter(m => m.type === 'alert' || m.type === 'recommendation').slice(0, 4).map((msg, i) => (
-                <div key={i} className="bg-white/80 rounded-lg p-3 border border-amber-200/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    {msg.type === 'alert' ? <AlertTriangle size={12} className="text-amber-600" /> : <Zap size={12} className="text-blue-600" />}
-                    <span className={`text-[10px] font-medium ${msg.type === 'alert' ? 'text-amber-600' : 'text-blue-600'}`}>
-                      {msg.type === 'alert' ? 'CẢNH BÁO' : 'KHUYẾN NGHỊ'}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {businessTargets.map(t => {
+              const pct = t.targetValue > 0 ? Math.round((t.currentValue / t.targetValue) * 100) : 0;
+              const st = t.status;
+              const gradients: Record<string, string> = {
+                achieved: 'from-emerald-500 to-green-500',
+                on_track: 'from-blue-500 to-indigo-500',
+                at_risk: 'from-amber-500 to-orange-500',
+                behind: 'from-red-500 to-rose-500',
+              };
+              const bgs: Record<string, string> = {
+                achieved: 'bg-emerald-50 border-emerald-200',
+                on_track: 'bg-blue-50 border-blue-200',
+                at_risk: 'bg-amber-50 border-amber-200',
+                behind: 'bg-red-50 border-red-200',
+              };
+              const labels: Record<string, string> = { achieved: 'Đạt', on_track: 'Đúng tiến độ', at_risk: 'Rủi ro', behind: 'Chậm' };
+              return (
+                <div key={t.id} className={`rounded-xl border p-4 ${bgs[st] || 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-700 flex-1">{t.name}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st === 'achieved' ? 'bg-emerald-100 text-emerald-700' : st === 'on_track' ? 'bg-blue-100 text-blue-700' : st === 'at_risk' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                      {labels[st] || st}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-700 line-clamp-3">{msg.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════ COLLECTION PLANS ═══════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <Palette className="w-4 h-4 text-pink-600" /> BST & Sản phẩm — Lịch ra mắt
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {collectionPlans.map(c => {
-              const statusColor = c.status === 'launched' ? 'border-green-300 bg-green-50' : c.status === 'in_production' ? 'border-blue-300 bg-blue-50' : c.status === 'in_design' ? 'border-purple-300 bg-purple-50' : c.status === 'completed' ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-white';
-              const statusLabel = c.status === 'launched' ? '🚀 Đã ra mắt' : c.status === 'in_production' ? '🏭 Đang SX' : c.status === 'in_design' ? '🎨 Thiết kế' : c.status === 'completed' ? '✅ Xong' : '📋 Kế hoạch';
-              return (
-                <div key={c.month} className={`rounded-lg border p-3 ${statusColor}`}>
-                  <div className="text-[10px] text-slate-500 mb-1">T{c.month}</div>
-                  <div className="text-xs font-bold text-slate-800 truncate mb-1">{c.name}</div>
-                  <div className="text-[10px] text-slate-500 truncate mb-2">{c.theme}</div>
-                  <div className="text-[9px]">{statusLabel}</div>
-                  <div className="text-[9px] text-slate-400 mt-1">{c.targetSKUs} SKUs</div>
+                  <div className="h-2 bg-white/80 rounded-full overflow-hidden mb-1.5">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${gradients[st] || 'from-slate-400 to-slate-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span>{t.currentValue.toLocaleString()} / {t.targetValue.toLocaleString()} {t.unit}</span>
+                    <span className="font-bold">{pct}%</span>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* ═══════════ QUICK LINKS ═══════════ */}
+        {/* ── Channel + Department ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Channels */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center"><Globe size={13} className="text-indigo-600" /></div>
+                Kênh bán — Agent Analysis
+              </h2>
+              <Link href="/admin/master-plan/marketing" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">Report <ArrowRight size={10} /></Link>
+            </div>
+            <div className="space-y-4">
+              {channelAnalysis.map(ch => {
+                const recColors: Record<string, { bg: string; text: string; label: string }> = {
+                  increase: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: '↑ Tăng đầu tư' },
+                  maintain: { bg: 'bg-blue-50', text: 'text-blue-700', label: '→ Giữ nguyên' },
+                  decrease: { bg: 'bg-red-50', text: 'text-red-700', label: '↓ Cắt giảm' },
+                  optimize: { bg: 'bg-amber-50', text: 'text-amber-700', label: '⚡ Tối ưu hóa' },
+                };
+                const rec = recColors[ch.recommendation] || recColors.maintain;
+                const marginColor = ch.margin_pct >= 30 ? 'from-emerald-400 to-green-500' : ch.margin_pct >= 15 ? 'from-blue-400 to-indigo-500' : ch.margin_pct >= 0 ? 'from-amber-400 to-orange-500' : 'from-red-400 to-rose-500';
+
+                return (
+                  <div key={ch.channel} className="group">
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <span className="text-xs font-semibold text-slate-800 w-28">{ch.channel}</span>
+                      <div className="flex-1 h-4 bg-slate-50 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full bg-gradient-to-r ${marginColor}`} style={{ width: `${Math.max(ch.margin_pct + 20, 8)}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold w-12 text-right ${ch.margin_pct >= 20 ? 'text-emerald-600' : ch.margin_pct >= 0 ? 'text-amber-600' : 'text-red-600'}`}>{ch.margin_pct}%</span>
+                    </div>
+                    <div className="flex items-center gap-3 pl-28">
+                      <span className="text-[9px] text-slate-400">Share {ch.revenue_share}%</span>
+                      <span className="text-[9px] text-slate-400">ROAS {ch.roas}x</span>
+                      <span className={`text-[8px] font-semibold px-2 py-0.5 rounded-full ${rec.bg} ${rec.text}`}>{rec.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Departments */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center"><Users size={13} className="text-violet-600" /></div>
+                Hiệu suất Phòng ban
+              </h2>
+              <Link href="/admin/master-plan/hr-director" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">Report <ArrowRight size={10} /></Link>
+            </div>
+            <div className="space-y-2">
+              {report.departments.map(dept => {
+                const crColor = dept.completionRate >= 70 ? 'text-emerald-600 bg-emerald-50' : dept.completionRate >= 40 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                return (
+                  <div key={dept.name} className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 rounded-lg px-2 -mx-2 transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-600">
+                      {dept.name.replace('Phòng ', '').slice(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-medium text-slate-800 block truncate">{dept.name}</span>
+                      <span className="text-[10px] text-slate-400">{dept.headcount} NV · KPI {dept.avgKPI || '—'}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-xs font-bold px-2 py-0.5 rounded-md ${crColor}`}>{fmtPct(dept.completionRate)}</div>
+                      <div className="text-[9px] text-slate-400 mt-0.5">{dept.tasksDone}/{dept.tasksTotal} tasks</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Top Performers + Inventory + Pipeline ── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Top / Risk */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+              <div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center"><Star size={13} className="text-amber-600" /></div>
+              Nhân sự nổi bật
+            </h2>
+            {report.employees.topPerformers.length > 0 && (
+              <div className="mb-4">
+                <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-2">TOP PERFORMERS</div>
+                {report.employees.topPerformers.map((e, i) => (
+                  <div key={i} className="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-slate-400' : 'bg-amber-700'}`}>
+                      {i + 1}
+                    </div>
+                    <span className="text-xs text-slate-700 flex-1 truncate">{e.name}</span>
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{e.kpiScore}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {report.employees.atRisk.length > 0 && (
+              <div>
+                <div className="text-[9px] text-red-600 font-bold uppercase tracking-widest mb-2">CẦN COACHING</div>
+                {report.employees.atRisk.map((e, i) => (
+                  <div key={i} className="flex items-center gap-2 py-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-xs text-slate-700 flex-1 truncate">{e.name}</span>
+                    <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">{e.kpiScore}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Link href="/admin/master-plan/coach" className="flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-4">Coach Report <ArrowRight size={10} /></Link>
+          </div>
+
+          {/* Inventory */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+              <div className="w-6 h-6 rounded-md bg-orange-100 flex items-center justify-center"><Package size={13} className="text-orange-600" /></div>
+              Tồn kho
+            </h2>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className={`rounded-xl p-4 text-center ${criticalStock > 0 ? 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200' : 'bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200'}`}>
+                <div className={`text-2xl font-bold ${criticalStock > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{criticalStock}</div>
+                <div className="text-[9px] text-slate-500 mt-0.5">Hết hàng</div>
+              </div>
+              <div className={`rounded-xl p-4 text-center ${lowStockCount > 0 ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200' : 'bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200'}`}>
+                <div className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{lowStockCount}</div>
+                <div className="text-[9px] text-slate-500 mt-0.5">Sắp hết</div>
+              </div>
+            </div>
+            {stockAlerts.filter(a => a.status === 'critical' || a.status === 'low').slice(0, 4).map((a, i) => (
+              <div key={i} className="flex items-center gap-2 py-1.5 text-xs">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                <span className="text-slate-700 flex-1 truncate">{a.itemName}</span>
+                <span className="text-[10px] text-slate-400 font-mono">{a.currentStock}/{a.minStock}</span>
+              </div>
+            ))}
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
+              Tổng giá trị: <span className="font-bold text-slate-700">{fmtVND(report.inventory.totalValue)}</span>
+            </div>
+            <Link href="/admin/master-plan/operations" className="flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-2">Operations <ArrowRight size={10} /></Link>
+          </div>
+
+          {/* Pipeline */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+              <div className="w-6 h-6 rounded-md bg-purple-100 flex items-center justify-center"><ShoppingCart size={13} className="text-purple-600" /></div>
+              Pipeline
+            </h2>
+            <div className="space-y-3">
+              {report.pipeline.map((p, idx) => {
+                const maxVal = Math.max(...report.pipeline.map(x => x.totalValue));
+                const colors = ['bg-gradient-to-r from-purple-500 to-indigo-500', 'bg-gradient-to-r from-blue-500 to-cyan-500', 'bg-gradient-to-r from-emerald-500 to-green-500', 'bg-gradient-to-r from-amber-500 to-orange-500', 'bg-gradient-to-r from-slate-400 to-slate-500'];
+                return (
+                  <div key={p.stage}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-slate-700 font-medium">{p.stage}</span>
+                      <span className="text-slate-400">({p.count})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-3 bg-slate-50 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${colors[idx % colors.length]}`} style={{ width: `${maxVal > 0 ? (p.totalValue / maxVal) * 100 : 0}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-700 w-14 text-right">{fmtVND(p.totalValue)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Link href="/admin/master-plan/sales" className="flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-4">Sales Report <ArrowRight size={10} /></Link>
+          </div>
+        </div>
+
+        {/* ── Financial Health ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-teal-100 flex items-center justify-center"><Activity size={13} className="text-teal-600" /></div>
+              Sức khỏe Tài chính
+            </h2>
+            <Link href="/admin/master-plan/cfo" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">CFO Report <ArrowRight size={10} /></Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <HealthGauge label="Current Ratio" value={report.financialHealth.currentRatio} unit="x" good={1.5} warn={1.0} />
+            <HealthGauge label="Debt/Equity" value={report.financialHealth.debtToEquity} unit="x" good={1.0} warn={2.0} invert />
+            <HealthGauge label="Profit Margin" value={report.financialHealth.profitMargin} unit="%" good={15} warn={5} />
+            <HealthGauge label="Operating Margin" value={report.financialHealth.operatingMargin} unit="%" good={20} warn={10} />
+            <HealthGauge label="Burn Rate" value={report.financialHealth.burnRate / 1_000_000} unit="M" good={500} warn={800} invert />
+          </div>
+        </div>
+
+        {/* ── Strategy Insights ── */}
+        {strategyReport && strategyReport.messages.filter(m => m.type === 'alert' || m.type === 'recommendation').length > 0 && (
+          <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 rounded-2xl border border-amber-200 p-6">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+              <div className="w-6 h-6 rounded-md bg-amber-200 flex items-center justify-center"><Zap size={13} className="text-amber-700" /></div>
+              Strategy Advisor — Cảnh báo & Blind spots
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {strategyReport.messages.filter(m => m.type === 'alert' || m.type === 'recommendation').slice(0, 4).map((msg, i) => (
+                <div key={i} className="bg-white/90 rounded-xl p-4 border border-amber-100 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    {msg.type === 'alert' ? <AlertTriangle size={13} className="text-amber-600" /> : <Zap size={13} className="text-blue-600" />}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${msg.type === 'alert' ? 'text-amber-600' : 'text-blue-600'}`}>
+                      {msg.type === 'alert' ? 'CẢNH BÁO' : 'KHUYẾN NGHỊ'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed line-clamp-4">{msg.content}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── BST Calendar ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
+            <div className="w-6 h-6 rounded-md bg-fuchsia-100 flex items-center justify-center"><span className="text-[11px]">🎨</span></div>
+            BST & Lịch ra mắt — 12 BST/năm
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {collectionPlans.map(c => {
+              const statusStyles: Record<string, { border: string; bg: string; badge: string; label: string }> = {
+                launched: { border: 'border-emerald-200', bg: 'bg-gradient-to-br from-emerald-50 to-green-50', badge: 'bg-emerald-100 text-emerald-700', label: '🚀 Live' },
+                in_production: { border: 'border-blue-200', bg: 'bg-gradient-to-br from-blue-50 to-indigo-50', badge: 'bg-blue-100 text-blue-700', label: '🏭 SX' },
+                in_design: { border: 'border-purple-200', bg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50', badge: 'bg-purple-100 text-purple-700', label: '🎨 Design' },
+                completed: { border: 'border-slate-200', bg: 'bg-slate-50', badge: 'bg-slate-100 text-slate-600', label: '✅ Xong' },
+                planned: { border: 'border-slate-100', bg: 'bg-white', badge: 'bg-slate-50 text-slate-500', label: '📋 Plan' },
+              };
+              const st = statusStyles[c.status] || statusStyles.planned;
+              return (
+                <div key={c.month} className={`rounded-xl border ${st.border} ${st.bg} p-3.5 hover:shadow-md transition-all`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-slate-400 font-mono">T{c.month}</span>
+                    <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${st.badge}`}>{st.label}</span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-800 truncate mb-0.5">{c.name}</div>
+                  <div className="text-[10px] text-slate-500 truncate mb-2">{c.theme}</div>
+                  <div className="text-[9px] text-slate-400">{c.targetSKUs} SKUs</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Quick Navigation ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { href: '/admin/master-plan/ceo', label: 'CEO Report', icon: '📊', desc: 'Báo cáo tổng hợp' },
-            { href: '/admin/master-plan/cfo', label: 'CFO Report', icon: '💰', desc: 'Tài chính & P&L' },
-            { href: '/admin/master-plan/hr-director', label: 'HR Report', icon: '👥', desc: 'Nhân sự & KPI' },
-            { href: '/admin/master-plan/marketing', label: 'Marketing', icon: '📢', desc: 'Kênh & Chiến dịch' },
-            { href: '/admin/master-plan/sales', label: 'Sales Report', icon: '🤝', desc: 'Pipeline & Deals' },
-            { href: '/admin/master-plan/operations', label: 'Operations', icon: '⚙️', desc: 'Vận hành & Tồn kho' },
-            { href: '/admin/master-plan/coach', label: 'Coach Report', icon: '🏆', desc: 'Hiệu suất & PIP' },
-            { href: '/admin/tro-chuyen', label: 'Chat AI Agents', icon: '🤖', desc: 'Chạy /workflow' },
+            { href: '/admin/master-plan/ceo', label: 'CEO Report', icon: '📊', color: 'from-amber-500 to-orange-600' },
+            { href: '/admin/master-plan/cfo', label: 'CFO Report', icon: '💰', color: 'from-emerald-500 to-green-600' },
+            { href: '/admin/master-plan/hr-director', label: 'HR Report', icon: '👥', color: 'from-purple-500 to-violet-600' },
+            { href: '/admin/master-plan/marketing', label: 'Marketing', icon: '📢', color: 'from-cyan-500 to-teal-600' },
+            { href: '/admin/master-plan/sales', label: 'Sales', icon: '🤝', color: 'from-indigo-500 to-blue-600' },
+            { href: '/admin/master-plan/operations', label: 'Operations', icon: '⚙️', color: 'from-slate-500 to-gray-600' },
+            { href: '/admin/master-plan/coach', label: 'Coach', icon: '🏆', color: 'from-rose-500 to-pink-600' },
+            { href: '/admin/tro-chuyen', label: 'Chat Agents', icon: '🤖', color: 'from-blue-600 to-indigo-700' },
           ].map(link => (
-            <Link key={link.href} href={link.href} className="flex items-center gap-3 bg-white rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all group">
-              <span className="text-2xl">{link.icon}</span>
-              <div>
-                <div className="text-sm font-semibold text-slate-800 group-hover:text-blue-600">{link.label}</div>
-                <div className="text-[10px] text-slate-400">{link.desc}</div>
+            <Link key={link.href} href={link.href} className="group relative overflow-hidden rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-lg transition-all duration-300">
+              <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${link.color}`} />
+              <div className="flex items-center gap-3 p-4 pl-5">
+                <span className="text-xl">{link.icon}</span>
+                <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">{link.label}</span>
+                <ArrowUpRight size={14} className="text-slate-300 ml-auto group-hover:text-blue-500 transition-colors" />
               </div>
-              <ArrowRight size={14} className="text-slate-300 ml-auto group-hover:text-blue-400" />
             </Link>
           ))}
         </div>
 
-        {/* ═══════════ RECENT AGENT MESSAGES ═══════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-slate-600" /> Agent Messages gần nhất
+        {/* ── Recent Agent Messages ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center"><MessageSquare size={13} className="text-slate-600" /></div>
+              Agent Messages gần nhất
             </h2>
-            <Link href="/admin/nhat-ky" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-              Tất cả {totalMessages} messages <ArrowRight size={12} />
+            <Link href="/admin/nhat-ky" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">
+              Tất cả {totalMessages} <ArrowRight size={10} />
             </Link>
           </div>
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {messages.slice(0, 8).map(msg => {
               const profile = agentProfiles[msg.agentRole];
-              const typeColor = msg.type === 'alert' ? 'border-l-amber-500' : msg.type === 'decision' ? 'border-l-green-500' : msg.type === 'recommendation' ? 'border-l-blue-500' : 'border-l-slate-300';
+              const typeStyles: Record<string, { border: string; badge: string }> = {
+                alert: { border: 'border-l-amber-400', badge: 'bg-amber-50 text-amber-700' },
+                decision: { border: 'border-l-emerald-400', badge: 'bg-emerald-50 text-emerald-700' },
+                recommendation: { border: 'border-l-blue-400', badge: 'bg-blue-50 text-blue-700' },
+                analysis: { border: 'border-l-slate-300', badge: 'bg-slate-50 text-slate-600' },
+                question: { border: 'border-l-purple-400', badge: 'bg-purple-50 text-purple-700' },
+              };
+              const ts = typeStyles[msg.type] || typeStyles.analysis;
               return (
-                <div key={msg.id} className={`border-l-3 ${typeColor} bg-slate-50 rounded-r-lg px-3 py-2`} style={{ borderLeftWidth: '3px' }}>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <AgentAvatar role={msg.agentRole} size="xs" />
-                    <span className="text-[11px] font-semibold text-slate-700">{msg.agentName}</span>
-                    <span className={`text-[9px] px-1 py-0.5 rounded ${msg.type === 'alert' ? 'bg-amber-100 text-amber-700' : msg.type === 'decision' ? 'bg-green-100 text-green-700' : msg.type === 'recommendation' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{msg.type}</span>
+                <div key={msg.id} className={`border-l-[3px] ${ts.border} bg-slate-50/50 rounded-r-xl px-4 py-3 hover:bg-slate-50 transition-colors`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-5 h-5 ${profile.color} rounded-md flex items-center justify-center text-white text-[7px] font-bold`}>
+                      {profile.avatar.slice(0, 2)}
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-700">{msg.agentName}</span>
+                    <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${ts.badge}`}>{msg.type}</span>
                   </div>
-                  <p className="text-[11px] text-slate-600 line-clamp-2">{msg.content}</p>
+                  <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed pl-7">{msg.content}</p>
                 </div>
               );
             })}
@@ -580,25 +704,28 @@ export default function CommandCenterPage() {
   );
 }
 
-// ============ SUB-COMPONENTS ============
+// ═══════════ SUB COMPONENTS ═══════════
 
-function MetricCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
-  const colors: Record<string, string> = {
-    cyan: 'from-cyan-500/10 to-cyan-500/5 border-cyan-500/20',
-    green: 'from-green-500/10 to-green-500/5 border-green-500/20',
-    red: 'from-red-500/10 to-red-500/5 border-red-500/20',
-    blue: 'from-blue-500/10 to-blue-500/5 border-blue-500/20',
-    purple: 'from-purple-500/10 to-purple-500/5 border-purple-500/20',
-    amber: 'from-amber-500/10 to-amber-500/5 border-amber-500/20',
-    slate: 'from-slate-500/10 to-slate-500/5 border-slate-500/20',
-    pink: 'from-pink-500/10 to-pink-500/5 border-pink-500/20',
+function HeroCard({ label, value, sub, accent, pct }: { label: string; value: string; sub: string; accent: string; pct?: number }) {
+  const accents: Record<string, { from: string; to: string; glow: string; text: string }> = {
+    cyan: { from: 'from-cyan-500/10', to: 'to-blue-500/5', glow: 'shadow-cyan-500/5', text: 'text-cyan-400' },
+    emerald: { from: 'from-emerald-500/10', to: 'to-green-500/5', glow: 'shadow-emerald-500/5', text: 'text-emerald-400' },
+    red: { from: 'from-red-500/10', to: 'to-rose-500/5', glow: 'shadow-red-500/5', text: 'text-red-400' },
+    violet: { from: 'from-violet-500/10', to: 'to-purple-500/5', glow: 'shadow-violet-500/5', text: 'text-violet-400' },
+    amber: { from: 'from-amber-500/10', to: 'to-orange-500/5', glow: 'shadow-amber-500/5', text: 'text-amber-400' },
   };
+  const a = accents[accent] || accents.cyan;
 
   return (
-    <div className={`bg-gradient-to-br ${colors[color] || colors.slate} border rounded-xl px-3 py-3`}>
-      <div className="text-[10px] text-slate-400 mb-1">{label}</div>
-      <div className="text-lg font-bold text-white">{value}</div>
-      <div className="text-[9px] text-slate-500 mt-0.5">{sub}</div>
+    <div className={`bg-gradient-to-br ${a.from} ${a.to} rounded-2xl border border-white/10 backdrop-blur-sm p-5 shadow-lg ${a.glow}`}>
+      <div className="text-[11px] text-slate-400 mb-1.5 tracking-wide">{label}</div>
+      <div className={`text-2xl font-bold text-white mb-1 tracking-tight`}>{value}</div>
+      <div className="text-[10px] text-slate-500">{sub}</div>
+      {pct !== undefined && (
+        <div className="mt-2.5 h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-400`} style={{ width: `${Math.min(pct, 100)}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -606,16 +733,18 @@ function MetricCard({ label, value, sub, color }: { label: string; value: string
 function HealthGauge({ label, value, unit, good, warn, invert }: { label: string; value: number; unit: string; good: number; warn: number; invert?: boolean }) {
   const isGood = invert ? value <= good : value >= good;
   const isWarn = invert ? (value > good && value <= warn) : (value < good && value >= warn);
-  const isBad = !isGood && !isWarn;
-  const color = isGood ? 'text-green-600 bg-green-50 border-green-200' : isWarn ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200';
+  const styles = isGood
+    ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200 text-emerald-600'
+    : isWarn
+    ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200 text-amber-600'
+    : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200 text-red-600';
+  const statusLabel = isGood ? '✓ Tốt' : isWarn ? '⚠ Theo dõi' : '✕ Cần xử lý';
 
   return (
-    <div className={`rounded-lg border p-3 text-center ${color}`}>
-      <div className="text-xl font-bold">{typeof value === 'number' ? value.toFixed(1) : value}{unit}</div>
+    <div className={`rounded-xl border p-4 text-center ${styles}`}>
+      <div className="text-xl font-bold">{typeof value === 'number' ? value.toFixed(1) : value}<span className="text-xs font-normal ml-0.5">{unit}</span></div>
       <div className="text-[10px] text-slate-500 mt-1">{label}</div>
-      <div className={`text-[9px] font-medium mt-1 ${isGood ? 'text-green-600' : isWarn ? 'text-amber-600' : 'text-red-600'}`}>
-        {isGood ? '✓ Tốt' : isWarn ? '⚠ Theo dõi' : '✕ Cần xử lý'}
-      </div>
+      <div className="text-[9px] font-semibold mt-1.5">{statusLabel}</div>
     </div>
   );
 }

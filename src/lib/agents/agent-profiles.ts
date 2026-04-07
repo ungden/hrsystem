@@ -101,9 +101,19 @@ export const agentProfiles: Record<AgentRole, AgentProfile> = {
     textColor: 'text-red-700',
     description: 'Chiến lược gia cấp cao. Challenge CEO, tìm blind spots, đề xuất pivots. Không tô hồng.',
   },
+  assistant: {
+    role: 'assistant',
+    name: 'AI Assistant',
+    title: 'Trợ lý Tổng hợp',
+    avatar: 'TL',
+    color: 'bg-gradient-to-br from-slate-600 to-gray-800',
+    bgColor: 'bg-slate-50',
+    textColor: 'text-slate-700',
+    description: 'Tổng hợp báo cáo từ tất cả agents thành bản tin dễ đọc cho CEO. Viết rõ ràng, súc tích.',
+  },
 };
 
-export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach', 'channel_optimizer', 'inventory_planner', 'collection_director', 'market_research', 'strategy'];
+export const allAgentRoles: AgentRole[] = ['ceo', 'hr_director', 'finance', 'dept_manager', 'performance_coach', 'channel_optimizer', 'inventory_planner', 'collection_director', 'market_research', 'strategy', 'assistant'];
 
 export function getAgentProfile(role: AgentRole): AgentProfile {
   return agentProfiles[role];

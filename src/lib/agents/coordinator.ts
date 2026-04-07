@@ -31,6 +31,7 @@ import { runInventoryPlannerAgent } from './inventory-planner-agent';
 import { runCollectionDirectorAgent } from './collection-director-agent';
 import { runMarketResearchAgent } from './market-research-agent';
 import { runStrategyAgent } from './strategy-agent';
+import { runAssistantAgent } from './assistant-agent';
 import { generateAllFinancials, calculateFinancialHealth, generateDepartmentDetails, generateMilestones } from '../financial-data';
 import { getActionLog } from './agent-skills';
 
@@ -119,9 +120,22 @@ export async function runFullCoordination(year: number = 2026, quarter: QuarterP
   const strategyResult = runStrategyAgent(fullState, marketResearch);
 
   // ================================================================
+  // PHASE 5: ASSISTANT — Tổng hợp TẤT CẢ thành báo cáo cho CEO
+  // Chạy cuối cùng, đọc toàn bộ state + strategy rồi viết reports.
+  // ================================================================
+  const finalState: AgentCoordinationState = {
+    ...fullState,
+    strategyReport: strategyResult,
+  };
+  const assistantResult = runAssistantAgent(finalState);
+
+  // ================================================================
   // COMBINE — Messages ordered by phase for natural reading flow
+  // Assistant reports go FIRST (executive summary), then raw agent messages
   // ================================================================
   const allMessages = [
+    // Phase 5: Assistant reports (CEO reads these first)
+    ...assistantResult.reports,
     // Phase 1: Intelligence
     ...marketResearch.messages,
     ...channelResult.messages,
@@ -139,6 +153,7 @@ export async function runFullCoordination(year: number = 2026, quarter: QuarterP
   ];
 
   const agentStatuses: Record<AgentRole, 'idle' | 'thinking' | 'done' | 'error'> = {
+    assistant: 'done',
     market_research: 'done',
     channel_optimizer: 'done',
     inventory_planner: 'done',

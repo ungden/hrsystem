@@ -38,6 +38,7 @@ export default function ActivityLogPage() {
     collection_director: 'Collection Director',
     market_research: 'Market Research',
     strategy: 'Strategy Advisor',
+    assistant: 'Trợ lý Tổng hợp',
   };
 
   const typeLabels: Record<AgentMessage['type'], string> = {

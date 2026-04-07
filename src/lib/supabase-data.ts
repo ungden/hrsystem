@@ -793,6 +793,8 @@ export async function createTask(task: {
   points?: number; category?: string; description?: string; due_date?: string;
   created_by?: number; month_number?: number;
   kpi_metric?: string; kpi_target?: string; kpi_unit?: string;
+  context_note?: string; adjusted_target?: number; target_rationale?: string;
+  week_cumulative?: number; month_cumulative?: number; channel?: string;
 }) {
   const supabase = getSupabase();
 

@@ -8,6 +8,7 @@ import {
   getEmployees, getTasks, getTasksWithActuals,
   updateInventoryStock, getInventory,
 } from '@/lib/supabase-data';
+import type { DailyContext } from './daily-task-context';
 
 const actionLog: AgentAction[] = [];
 
@@ -210,6 +211,222 @@ export async function deptCreateDailyTasks(managerId: number, monthNumber: numbe
       `TrP ${manager.name} tạo ${created} task cho ${teamMembers.length} NV T${monthNumber} (phân theo ngày)`, true, { created, month: monthNumber, daysPerEmployee: workingDays.length });
   } catch (e) {
     return logAction('dept_manager', 'create_daily_tasks', `LOI: ${(e as Error).message}`, false);
+  }
+}
+
+// ============ CONTEXTUAL DAILY TASKS ============
+
+/** Department-specific task templates with adaptive logic */
+interface TaskTemplate {
+  title: string;
+  kpi_metric: string;
+  kpi_target: number; // base daily target
+  kpi_unit: string;
+  points: number;
+  contextBuilder: (ctx: DailyContext) => { adjustedTarget: number; contextNote: string; rationale: string; priority: string; titleSuffix: string };
+}
+
+function buildAdaptiveInfo(
+  ctx: DailyContext,
+  metric: string,
+  baseTarget: number,
+  unit: string,
+): { adjustedTarget: number; contextNote: string; rationale: string; priority: string } {
+  const month = ctx.monthCumulative[metric];
+  const week = ctx.weekCumulative[metric];
+  const yesterday = ctx.yesterday.metrics[metric];
+  const paceTarget = ctx.pace.dailyTargetToHitMonthly[metric];
+
+  // Start with pace-based target, fall back to base
+  let adjustedTarget = paceTarget && paceTarget > 0 ? paceTarget : baseTarget;
+  let priority = 'medium';
+  const notes: string[] = [];
+
+  if (month) {
+    notes.push(`Thang: ${month.actual}/${month.target} ${unit} (${month.pctAchieved}%)`);
+    if (month.pctAchieved < 50 && ctx.pace.workingDaysRemaining <= 10) {
+      priority = 'high';
+      adjustedTarget = Math.ceil(adjustedTarget * 1.15); // Push 15% harder
+      notes.push('Can tang toc de dat target thang');
+    } else if (month.pctAchieved >= 90) {
+      priority = 'low';
+      notes.push('Gan dat target thang, tap trung chat luong');
+    }
+  }
+
+  if (week) {
+    notes.push(`Tuan: ${week.actual}/${week.target} ${unit}, con ${week.remaining} trong ${week.daysLeft} ngay`);
+    if (week.daysLeft > 0 && week.remaining > 0) {
+      const weekPace = Math.ceil(week.remaining / week.daysLeft);
+      if (weekPace > adjustedTarget) adjustedTarget = weekPace;
+    }
+  }
+
+  if (yesterday) {
+    const yPct = yesterday.target > 0 ? Math.round((yesterday.actual / yesterday.target) * 100) : 0;
+    if (yPct < 80) {
+      notes.push(`Hom qua: ${yesterday.actual}/${yesterday.target} ${unit} (${yPct}%) - can bu`);
+      if (priority === 'medium') priority = 'high';
+    } else if (yPct >= 120) {
+      notes.push(`Hom qua: vuot target (${yPct}%) - tot!`);
+    }
+  }
+
+  const rationale = ctx.pace.workingDaysRemaining > 0
+    ? `Con ${ctx.pace.workingDaysRemaining} ngay lam viec. ${month ? `Can ${adjustedTarget} ${unit}/ngay de dat ${month.target} ${unit}/thang.` : ''}`
+    : 'Ngay cuoi thang.';
+
+  return {
+    adjustedTarget: Math.max(1, adjustedTarget),
+    contextNote: notes.join(' | ') || `Target co ban: ${baseTarget} ${unit}/ngay`,
+    rationale,
+    priority,
+  };
+}
+
+const DEPT_TEMPLATES: Record<string, TaskTemplate[]> = {
+  'Sales': [
+    {
+      title: 'Lien he khach hang moi',
+      kpi_metric: 'contacts', kpi_target: 10, kpi_unit: 'khach', points: 15,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'contacts', 10, 'khach');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Chot don hang',
+      kpi_metric: 'orders', kpi_target: 3, kpi_unit: 'don', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'orders', 3, 'don');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Cham soc khach hang cu',
+      kpi_metric: 'followups', kpi_target: 5, kpi_unit: 'khach', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'followups', 5, 'khach');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+  ],
+  'Marketing': [
+    {
+      title: 'Tao content marketing',
+      kpi_metric: 'content_pieces', kpi_target: 2, kpi_unit: 'bai', points: 15,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'content_pieces', 2, 'bai');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Chay quang cao & toi uu',
+      kpi_metric: 'roas', kpi_target: 5, kpi_unit: 'x', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'roas', 5, 'x');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Phan tich hieu qua kenh',
+      kpi_metric: 'reports', kpi_target: 1, kpi_unit: 'bao cao', points: 10,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'reports', 1, 'bao cao');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+  ],
+  'Van hanh': [
+    {
+      title: 'Xu ly don hang & giao van',
+      kpi_metric: 'orders_processed', kpi_target: 20, kpi_unit: 'don', points: 25,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'orders_processed', 20, 'don');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Kiem ke & quan ly kho',
+      kpi_metric: 'inventory_checks', kpi_target: 1, kpi_unit: 'lan', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'inventory_checks', 1, 'lan');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+  ],
+  'Ke toan': [
+    {
+      title: 'Ghi nhan cong no & thu chi',
+      kpi_metric: 'entries', kpi_target: 15, kpi_unit: 'but toan', points: 25,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'entries', 15, 'but toan');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+    {
+      title: 'Doi soat ngan hang',
+      kpi_metric: 'reconciliations', kpi_target: 1, kpi_unit: 'lan', points: 20,
+      contextBuilder: (ctx) => {
+        const info = buildAdaptiveInfo(ctx, 'reconciliations', 1, 'lan');
+        return { ...info, titleSuffix: '' };
+      },
+    },
+  ],
+};
+
+const DEFAULT_TEMPLATES: TaskTemplate[] = [
+  {
+    title: 'Nhiem vu hang ngay',
+    kpi_metric: 'tasks_done', kpi_target: 3, kpi_unit: 'task', points: 15,
+    contextBuilder: (ctx) => {
+      const info = buildAdaptiveInfo(ctx, 'tasks_done', 3, 'task');
+      return { ...info, titleSuffix: '' };
+    },
+  },
+];
+
+/** Generate contextual daily tasks for one employee based on real performance data */
+export async function generateContextualDailyTasks(
+  employee: { id: number; name: string; role: string; department: string },
+  date: string,
+  context: DailyContext,
+): Promise<AgentAction> {
+  try {
+    const templates = DEPT_TEMPLATES[employee.department] || DEFAULT_TEMPLATES;
+    const dateShort = date.slice(5); // MM-DD
+    let created = 0;
+
+    for (const tmpl of templates) {
+      const adaptive = tmpl.contextBuilder(context);
+
+      await createTask({
+        title: `${tmpl.title}${adaptive.titleSuffix ? ' — ' + adaptive.titleSuffix : ''} (${dateShort})`,
+        description: adaptive.contextNote,
+        assignee_id: employee.id,
+        department: employee.department,
+        priority: adaptive.priority,
+        points: tmpl.points,
+        due_date: date,
+        created_by: 1, // AI CEO
+        kpi_metric: tmpl.kpi_metric,
+        kpi_target: String(adaptive.adjustedTarget),
+        kpi_unit: tmpl.kpi_unit,
+        context_note: adaptive.contextNote,
+        adjusted_target: adaptive.adjustedTarget,
+        target_rationale: adaptive.rationale,
+        week_cumulative: context.weekCumulative[tmpl.kpi_metric]?.actual ?? 0,
+        month_cumulative: context.monthCumulative[tmpl.kpi_metric]?.actual ?? 0,
+      });
+      created++;
+    }
+
+    return logAction('dept_manager', 'generate_contextual_tasks',
+      `Tao ${created} task cho ${employee.name} ngay ${date} (adaptive targets)`, true,
+      { employeeId: employee.id, date, tasksCreated: created });
+  } catch (e) {
+    return logAction('dept_manager', 'generate_contextual_tasks',
+      `LOI tao task cho ${employee.name}: ${(e as Error).message}`, false);
   }
 }
 

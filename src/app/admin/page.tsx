@@ -9,55 +9,74 @@ import {
   Activity, Flame, Star, MessageSquare, Eye,
 } from 'lucide-react';
 import { agentProfiles, allAgentRoles } from '@/lib/agents/agent-profiles';
-import { runFullCoordination } from '@/lib/agents/coordinator';
-import { buildExecutiveReport, ExecutiveReportData, fmtVND, fmtPct } from '@/lib/report-builder';
-import type { AgentCoordinationState, AgentRole } from '@/lib/agent-types';
+import { fmtVND, fmtPct } from '@/lib/report-builder';
+import { createBrowserClient } from '@supabase/ssr';
+import type { AgentRole } from '@/lib/agent-types';
+
+// Data shape from Supabase snapshot
+interface CommandCenterData {
+  businessTargets: any[];
+  departmentGoals: any[];
+  individualPlans: any[];
+  costProjections: any[];
+  messages: any[];
+  agentStatuses: Record<string, string>;
+  actions: any[];
+  channelAnalysis: any[];
+  stockAlerts: any[];
+  collectionPlans: any[];
+  inventoryForecasts: any[];
+  financialHealth: any;
+  milestones: any[];
+  departmentDetails: any[];
+  marketResearch: any;
+  strategyReport: any;
+  report: any;
+}
 
 export default function CommandCenterPage() {
-  const [agentState, setAgentState] = useState<AgentCoordinationState | null>(null);
-  const [report, setReport] = useState<ExecutiveReportData | null>(null);
+  const [data, setData] = useState<CommandCenterData | null>(null);
+  const [snapshotTime, setSnapshotTime] = useState('');
   const [loading, setLoading] = useState(true);
-  const [phase, setPhase] = useState('Khởi tạo...');
-  const [phaseNum, setPhaseNum] = useState(0);
+  const [error, setError] = useState('');
 
   const loadData = () => {
     setLoading(true);
-    setPhaseNum(0);
-    setPhase('Thu thập dữ liệu...');
-    const t0 = Date.now();
+    setError('');
 
-    const tick = setInterval(() => {
-      const elapsed = (Date.now() - t0) / 1000;
-      if (elapsed < 2) { setPhase('Thu thập Intelligence...'); setPhaseNum(1); }
-      else if (elapsed < 4) { setPhase('CEO đặt chiến lược...'); setPhaseNum(2); }
-      else if (elapsed < 6) { setPhase('Phân bổ mục tiêu phòng ban...'); setPhaseNum(3); }
-      else if (elapsed < 8) { setPhase('Coach đánh giá hiệu suất...'); setPhaseNum(4); }
-      else { setPhase('Tổng hợp báo cáo...'); setPhaseNum(5); }
-    }, 500);
+    // Read pre-computed snapshot from Supabase — zero computation on frontend
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
 
-    Promise.all([
-      runFullCoordination(2026, 'Q2'),
-      buildExecutiveReport(2026),
-    ]).then(([state, rpt]) => {
-      clearInterval(tick);
-      setAgentState(state);
-      setReport(rpt);
-      setLoading(false);
-    }).catch(() => {
-      clearInterval(tick);
-      setPhase('Lỗi kết nối');
-      setLoading(false);
-    });
+    supabase
+      .from('command_center_snapshots')
+      .select('data, generated_at')
+      .eq('snapshot_type', 'full')
+      .order('generated_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data: row, error: err }) => {
+        if (err || !row) {
+          setError(err?.message || 'Chưa có snapshot. Chạy: npx tsx scripts/push-snapshot.ts');
+          setLoading(false);
+          return;
+        }
+        setData(row.data as CommandCenterData);
+        setSnapshotTime(row.generated_at);
+        setLoading(false);
+      });
   };
 
   useEffect(() => { loadData(); }, []);
 
   // ── Loading ──
-  if (loading || !agentState || !report) {
+  // ── Loading ──
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
         <div className="text-center max-w-md">
-          {/* Animated rings */}
           <div className="relative w-28 h-28 mx-auto mb-8">
             <div className="absolute inset-0 rounded-full border border-cyan-500/20 animate-ping" style={{ animationDuration: '2s' }} />
             <div className="absolute inset-3 rounded-full border border-cyan-400/30 animate-ping" style={{ animationDuration: '1.5s' }} />
@@ -66,24 +85,29 @@ export default function CommandCenterPage() {
               <Brain className="w-7 h-7 text-cyan-400" />
             </div>
           </div>
-          <p className="text-cyan-400 text-sm font-medium tracking-wide mb-2">{phase}</p>
-          {/* Phase progress */}
-          <div className="flex items-center gap-1.5 justify-center mb-4">
-            {[1,2,3,4,5].map(n => (
-              <div key={n} className={`h-1 rounded-full transition-all duration-500 ${n <= phaseNum ? 'w-8 bg-cyan-400' : 'w-4 bg-slate-700'}`} />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {['CEO','HR','CFO','Coach','MR','CH','KHO','BST','STR','TrP','TL'].map((a, i) => (
-              <span key={a} className={`text-[9px] px-2 py-1 rounded-full border transition-all duration-300 ${i < phaseNum * 2 ? 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10' : 'border-slate-700 text-slate-600'}`}>{a}</span>
-            ))}
-          </div>
+          <p className="text-cyan-400 text-sm font-medium tracking-wide mb-2">Đang tải dữ liệu từ Supabase...</p>
         </div>
       </div>
     );
   }
 
-  const { businessTargets, departmentGoals, individualPlans, messages, agentStatuses, stockAlerts, channelAnalysis, collectionPlans, strategyReport } = agentState;
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="text-center max-w-lg bg-slate-900 rounded-2xl border border-slate-700 p-8">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-white mb-2">Chưa có dữ liệu AI Agent</h2>
+          <p className="text-sm text-slate-400 mb-4">{error || 'Chưa có snapshot nào.'}</p>
+          <p className="text-xs text-slate-500">Chạy lệnh sau ở terminal để AI tính toán và đẩy data lên:</p>
+          <code className="block mt-2 bg-slate-800 text-cyan-400 text-xs px-4 py-3 rounded-lg font-mono">npx tsx --env-file=.env.local scripts/push-snapshot.ts</code>
+          <button onClick={loadData} className="mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700">Thử lại</button>
+        </div>
+      </div>
+    );
+  }
+
+  const { businessTargets, departmentGoals, individualPlans, messages, agentStatuses, stockAlerts, channelAnalysis, collectionPlans, strategyReport } = data;
+  const report = data.report;
 
   const totalMessages = messages.length;
   const alerts = messages.filter(m => m.type === 'alert').length;
@@ -123,9 +147,14 @@ export default function CommandCenterPage() {
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
                 <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-sm shadow-emerald-400" />
-                <span className="text-xs text-emerald-300 font-mono">11/11 agents online</span>
+                <span className="text-xs text-emerald-300 font-mono">11/11 agents done</span>
               </div>
-              <button onClick={loadData} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm">
+              {snapshotTime && (
+                <div className="hidden md:block text-[10px] text-slate-500 font-mono">
+                  Cập nhật: {new Date(snapshotTime).toLocaleString('vi-VN')}
+                </div>
+              )}
+              <button onClick={loadData} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm" title="Reload from Supabase">
                 <RefreshCw size={16} className="text-slate-400" />
               </button>
             </div>
@@ -298,8 +327,8 @@ export default function CommandCenterPage() {
               Quý so sánh
             </h2>
             <div className="space-y-3">
-              {report.quarterComparison.map(q => {
-                const maxRev = Math.max(...report.quarterComparison.map(x => x.revenue));
+              {report.quarterComparison.map((q: any) => {
+                const maxRev = Math.max(...report.quarterComparison.map((x: any) => x.revenue));
                 const isCurrent = q.quarter === 'Q2';
                 return (
                   <div key={q.quarter} className={`rounded-xl p-4 ${isCurrent ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm' : 'bg-slate-50 border border-slate-100'}`}>
@@ -332,8 +361,8 @@ export default function CommandCenterPage() {
               </Link>
             </div>
             <div className="space-y-1">
-              {report.monthlyPnL.map((m, idx) => {
-                const maxRev = Math.max(...report.monthlyPnL.map(x => x.revenue));
+              {report.monthlyPnL.map((m: any, idx: number) => {
+                const maxRev = Math.max(...report.monthlyPnL.map((x: any) => x.revenue));
                 const barW = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
                 return (
                   <div key={m.month} className="flex items-center gap-2 py-1.5 group hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
@@ -448,7 +477,7 @@ export default function CommandCenterPage() {
               <Link href="/admin/master-plan/hr-director" className="text-[11px] text-blue-600 hover:underline flex items-center gap-1">Report <ArrowRight size={10} /></Link>
             </div>
             <div className="space-y-2">
-              {report.departments.map(dept => {
+              {report.departments.map((dept: any) => {
                 const crColor = dept.completionRate >= 70 ? 'text-emerald-600 bg-emerald-50' : dept.completionRate >= 40 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
                 return (
                   <div key={dept.name} className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 rounded-lg px-2 -mx-2 transition-colors">
@@ -482,7 +511,7 @@ export default function CommandCenterPage() {
             {report.employees.topPerformers.length > 0 && (
               <div className="mb-4">
                 <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-2">TOP PERFORMERS</div>
-                {report.employees.topPerformers.map((e, i) => (
+                {report.employees.topPerformers.map((e: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-slate-400' : 'bg-amber-700'}`}>
                       {i + 1}
@@ -496,7 +525,7 @@ export default function CommandCenterPage() {
             {report.employees.atRisk.length > 0 && (
               <div>
                 <div className="text-[9px] text-red-600 font-bold uppercase tracking-widest mb-2">CẦN COACHING</div>
-                {report.employees.atRisk.map((e, i) => (
+                {report.employees.atRisk.map((e: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 py-2">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                     <span className="text-xs text-slate-700 flex-1 truncate">{e.name}</span>
@@ -544,8 +573,8 @@ export default function CommandCenterPage() {
               Pipeline
             </h2>
             <div className="space-y-3">
-              {report.pipeline.map((p, idx) => {
-                const maxVal = Math.max(...report.pipeline.map(x => x.totalValue));
+              {report.pipeline.map((p: any, idx: number) => {
+                const maxVal = Math.max(...report.pipeline.map((x: any) => x.totalValue));
                 const colors = ['bg-gradient-to-r from-purple-500 to-indigo-500', 'bg-gradient-to-r from-blue-500 to-cyan-500', 'bg-gradient-to-r from-emerald-500 to-green-500', 'bg-gradient-to-r from-amber-500 to-orange-500', 'bg-gradient-to-r from-slate-400 to-slate-500'];
                 return (
                   <div key={p.stage}>
@@ -586,14 +615,14 @@ export default function CommandCenterPage() {
         </div>
 
         {/* ── Strategy Insights ── */}
-        {strategyReport && strategyReport.messages.filter(m => m.type === 'alert' || m.type === 'recommendation').length > 0 && (
+        {strategyReport && strategyReport.messages.filter((m: any) => m.type === 'alert' || m.type === 'recommendation').length > 0 && (
           <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 rounded-2xl border border-amber-200 p-6">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-5">
               <div className="w-6 h-6 rounded-md bg-amber-200 flex items-center justify-center"><Zap size={13} className="text-amber-700" /></div>
               Strategy Advisor — Cảnh báo & Blind spots
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {strategyReport.messages.filter(m => m.type === 'alert' || m.type === 'recommendation').slice(0, 4).map((msg, i) => (
+              {strategyReport.messages.filter((m: any) => m.type === 'alert' || m.type === 'recommendation').slice(0, 4).map((msg: any, i: number) => (
                 <div key={i} className="bg-white/90 rounded-xl p-4 border border-amber-100 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     {msg.type === 'alert' ? <AlertTriangle size={13} className="text-amber-600" /> : <Zap size={13} className="text-blue-600" />}
@@ -674,8 +703,8 @@ export default function CommandCenterPage() {
             </Link>
           </div>
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-            {messages.slice(0, 8).map(msg => {
-              const profile = agentProfiles[msg.agentRole];
+            {messages.slice(0, 8).map((msg: any) => {
+              const profile = agentProfiles[msg.agentRole as AgentRole];
               const typeStyles: Record<string, { border: string; badge: string }> = {
                 alert: { border: 'border-l-amber-400', badge: 'bg-amber-50 text-amber-700' },
                 decision: { border: 'border-l-emerald-400', badge: 'bg-emerald-50 text-emerald-700' },

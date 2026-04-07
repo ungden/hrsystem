@@ -1,22 +1,115 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import PageHeader from '@/components/PageHeader';
-import AgentChatPanel from '@/components/agents/AgentChatPanel';
 import AgentAvatar from '@/components/agents/AgentAvatar';
 import { AgentCoordinationState } from '@/lib/agent-types';
 import { agentProfiles, allAgentRoles } from '@/lib/agents/agent-profiles';
-import { runFullCoordination } from '@/lib/agents/coordinator';
+import { createBrowserClient } from '@supabase/ssr';
+import { Loader2 } from 'lucide-react';
 
-export default function ChatPage() {
+// Lazy-load the heavy chat panel (includes chat-engine, workflow-engine, all agent imports)
+const AgentChatPanel = dynamic(() => import('@/components/agents/AgentChatPanel'), {
+  loading: () => (
+    <div className="h-[700px] bg-slate-900 rounded-xl flex items-center justify-center">
+      <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
+    </div>
+  ),
+});
+
+/**
+ * Load AgentCoordinationState from Supabase snapshot instead of running 11 agents.
+ * runFullCoordination() takes 5-10s. Supabase read takes <500ms.
+ */
+function useSnapshotState() {
   const [state, setState] = useState<AgentCoordinationState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    runFullCoordination(2026, 'Q2').then(s => setState(s));
+    const sb = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    sb.from('command_center_snapshots')
+      .select('data')
+      .eq('snapshot_type', 'full')
+      .order('generated_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data: row, error: err }) => {
+        if (err || !row) {
+          setError(err?.message || 'Chưa có snapshot');
+          setLoading(false);
+          return;
+        }
+
+        const d = row.data as Record<string, unknown>;
+
+        // Reconstruct AgentCoordinationState from snapshot
+        const coordState: AgentCoordinationState = {
+          currentQuarter: (d.currentQuarter as AgentCoordinationState['currentQuarter']) || { year: 2026, quarter: 'Q2' },
+          businessTargets: (d.businessTargets as AgentCoordinationState['businessTargets']) || [],
+          departmentGoals: (d.departmentGoals as AgentCoordinationState['departmentGoals']) || [],
+          individualPlans: (d.individualPlans as AgentCoordinationState['individualPlans']) || [],
+          costProjections: (d.costProjections as AgentCoordinationState['costProjections']) || [],
+          salaryProjections: (d.salaryProjections as AgentCoordinationState['salaryProjections']) || [],
+          messages: (d.messages as AgentCoordinationState['messages']) || [],
+          agentStatuses: (d.agentStatuses as AgentCoordinationState['agentStatuses']) || ({} as AgentCoordinationState['agentStatuses']),
+          chatHistory: [],  // Always fresh per session
+          actions: (d.actions as AgentCoordinationState['actions']) || [],
+          financials: (d.financials as AgentCoordinationState['financials']) || { incomeStatements: [], balanceSheet: { month: '', data: { tongTaiSan: 0, taiSanNganHan: { tienMat: 0, khoanPhaiThu: 0, hangTonKho: 0, taiSanNganHanKhac: 0, tongTaiSanNganHan: 0 }, taiSanDaiHan: { taiSanCoDinh: 0, taiSanVoHinh: 0, dauTuDaiHan: 0, tongTaiSanDaiHan: 0 }, noPhaiTra: { noNganHan: 0, noDaiHan: 0, tongNoPhaiTra: 0 }, vonChuSoHuu: { vonDieuLe: 0, loiNhuanGiuLai: 0, tongVon: 0 } } }, cashFlow: { month: '', data: { kinhDoanh: { loiNhuan: 0, khauHao: 0, bienDongVonLuuDong: 0, tongKinhDoanh: 0 }, dauTu: { muaTaiSan: 0, dauTuKhac: 0, tongDauTu: 0 }, taiChinh: { vayNgan: 0, traNo: 0, tongTaiChinh: 0 }, bienDongTienRong: 0, tienDauKy: 0, tienCuoiKy: 0 } } },
+          financialHealth: (d.financialHealth as AgentCoordinationState['financialHealth']) || { currentRatio: 0, debtToEquity: 0, profitMargin: 0, operatingMargin: 0, revenueGrowth: 0, burnRate: 0 },
+          departmentDetails: (d.departmentDetails as AgentCoordinationState['departmentDetails']) || [],
+          milestones: (d.milestones as AgentCoordinationState['milestones']) || [],
+          channelAnalysis: (d.channelAnalysis as AgentCoordinationState['channelAnalysis']) || [],
+          inventoryForecasts: (d.inventoryForecasts as AgentCoordinationState['inventoryForecasts']) || [],
+          stockAlerts: (d.stockAlerts as AgentCoordinationState['stockAlerts']) || [],
+          collectionPlans: (d.collectionPlans as AgentCoordinationState['collectionPlans']) || [],
+          marketResearch: d.marketResearch as AgentCoordinationState['marketResearch'],
+          strategyReport: d.strategyReport as AgentCoordinationState['strategyReport'],
+        };
+
+        setState(coordState);
+        setLoading(false);
+      });
   }, []);
 
-  if (!state) {
-    return <div className="p-6"><PageHeader title="Trò chuyện với AI Agents" subtitle="Đang tải..." breadcrumbs={[]} /><div className="animate-pulse h-96 bg-slate-100 rounded-xl" /></div>;
+  return { state, setState, loading, error };
+}
+
+export default function ChatPage() {
+  const { state, setState, loading, error } = useSnapshotState();
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <PageHeader title="Trò chuyện với AI Agents" subtitle="Đang tải..." breadcrumbs={[]} />
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+          <span className="ml-2 text-sm text-slate-400">Đang tải dữ liệu từ Supabase...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !state) {
+    return (
+      <div className="p-6">
+        <PageHeader title="Trò chuyện với AI Agents" subtitle="" breadcrumbs={[]} />
+        <div className="flex items-center justify-center h-96 text-center">
+          <div>
+            <p className="text-sm text-slate-600 mb-2">Chưa có dữ liệu AI Agent</p>
+            <p className="text-xs text-slate-400 mb-3">{error}</p>
+            <code className="block text-[11px] bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-mono">
+              npx tsx --env-file=.env.local scripts/push-snapshot.ts
+            </code>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const wf = state.workflowRun;

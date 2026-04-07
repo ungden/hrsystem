@@ -17,13 +17,13 @@ export default function AgentMessageCard({ message }: AgentMessageCardProps) {
   const config = typeConfig[message.type];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-sm transition-shadow">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm transition-shadow">
       <div className="flex items-start gap-3">
-        <AgentAvatar role={message.agentRole} size="sm" />
+        <AgentAvatar role={message.agentRole} size="md" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-slate-800">{message.agentName}</span>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${config.color}`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-base font-semibold text-slate-800">{message.agentName}</span>
+            <span className={`text-xs font-medium px-2 py-1 rounded-full ${config.color}`}>
               {config.label}
             </span>
           </div>

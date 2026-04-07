@@ -37,13 +37,14 @@ async function main() {
   console.log(`   Revenue: ${(report.overview.totalRevenue / 1e9).toFixed(1)} tỷ`);
   console.log(`   Profit: ${(report.overview.netProfit / 1e9).toFixed(1)} tỷ`);
 
-  // Build the snapshot data
+  // Build the snapshot data — includes ALL fields needed by chat-engine
   const snapshot = {
     // Agent coordination
     businessTargets: agentState.businessTargets,
     departmentGoals: agentState.departmentGoals,
     individualPlans: agentState.individualPlans,
     costProjections: agentState.costProjections,
+    salaryProjections: agentState.salaryProjections,
     messages: agentState.messages,
     agentStatuses: agentState.agentStatuses,
     actions: agentState.actions,
@@ -52,10 +53,12 @@ async function main() {
     collectionPlans: agentState.collectionPlans,
     inventoryForecasts: agentState.inventoryForecasts,
     financialHealth: agentState.financialHealth,
+    financials: agentState.financials,
     milestones: agentState.milestones,
     departmentDetails: agentState.departmentDetails,
     marketResearch: agentState.marketResearch || null,
     strategyReport: agentState.strategyReport || null,
+    currentQuarter: agentState.currentQuarter,
     // Executive report
     report,
   };
